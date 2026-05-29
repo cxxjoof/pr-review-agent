@@ -17,10 +17,18 @@ backend/target/
 .env.*
 .env.local
 .env.*.local
+.env.github
+.env.github.*
 application-local.yml
 **/application-local.yml
 application-local.properties
 **/application-local.properties
+backend/src/main/resources/application-local.yml
+backend/src/main/resources/application-local.properties
+backend/src/main/resources/*.local.yml
+backend/src/main/resources/*.local.properties
+backend/src/main/resources/github-local.yml
+backend/src/main/resources/github-local.properties
 
 # IDE and OS files
 .idea/
