@@ -1,21 +1,27 @@
 # AI PR Review 助手
 
-AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应用。用户输入仓库地址和 PR 编号后，系统会获取 PR 变更内容，并结合 AI 模型输出结构化代码审查结果。
+AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应用。用户输入仓库地址和 PR 编号后，系统会获取 PR 变更内容，并逐步接入 AI 分析能力，输出结构化的代码审查结果。
 
-当前仓库按模块顺序逐步开发，现阶段已经完成：
+当前仓库按照模块拆分计划逐步开发，现阶段已完成：
 
 1. 项目基础结构
 2. 后端基础服务
 3. 前端基础页面
 4. 数据库实体与 Repository
+5. GitHub PR 数据获取
 
 ## 当前能力
 
 - 后端可通过 Spring Boot 正常启动
 - 提供 `GET /api/health` 健康检查接口
-- 已完成 `review_task`、`pull_request_info`、`review_result`、`risk_item`、`model_call_log` 5 张核心表的 JPA 实体映射
-- 已完成对应 Repository 定义与仓储层测试
-- 前端基础首页已可启动，包含仓库地址、PR 编号输入和开始分析按钮
+- 已完成 `review_task`、`pull_request_info`、`review_result`、`risk_item`、`model_call_log` 五张核心表的 JPA 映射
+- 已完成 GitHub API 配置与 `GitHubClient`
+- 支持解析 GitHub 仓库地址中的 `owner` 和 `repo`
+- 支持根据 `repoUrl` 和 `prNumber` 获取 PR 基本信息
+- 支持获取 PR changed files 与每个文件的 `patch` 内容
+- 支持将 PR 基本信息保存到 `review_task` 和 `pull_request_info`
+- 提供第五模块临时验收接口 `GET /api/github/pr`
+- 前端基础首页已可启动，包含仓库地址、PR 编号输入框和开始分析按钮
 
 ## 技术栈
 
@@ -24,8 +30,8 @@ AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应�
 - Java 21
 - Spring Boot 3.x
 - Spring Web
+- Spring WebFlux `WebClient`
 - Spring Data JPA
-- Spring WebClient
 - MySQL
 - Maven
 
@@ -39,7 +45,7 @@ AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应�
 外部服务：
 
 - GitHub REST API
-- OpenAI 兼容模型 API
+- OpenAI-compatible Model API
 
 ## 目录结构
 
@@ -48,7 +54,6 @@ pr-review-agent/
 ├── backend/
 ├── frontend/
 ├── docs/
-├── screenshots/
 ├── README.md
 ├── AGENTS.md
 └── .gitignore
@@ -56,15 +61,15 @@ pr-review-agent/
 
 ## 后端运行
 
-### 1. 环境要求
+### 环境要求
 
-- JDK 21 或更高版本
+- JDK 21
 - Maven 3.9+
 - MySQL 8.x（如需按真实数据库方式验收）
 
-### 2. 使用默认内存库启动
+### 使用默认内存库启动
 
-当前后端默认可使用 H2 内存库启动，适合快速验证健康检查和 JPA 映射是否可加载：
+当前后端默认可以使用 H2 内存数据库启动，适合快速验证接口与 JPA 映射：
 
 ```bash
 cd backend
@@ -85,9 +90,9 @@ GET http://localhost:8080/api/health
 }
 ```
 
-### 3. 使用 MySQL 启动
+### 使用 MySQL 启动
 
-如果要按第四模块验收标准验证真实 MySQL 建表，请先准备数据库，例如：
+如需按 MySQL 验收，可先创建数据库：
 
 ```sql
 CREATE DATABASE IF NOT EXISTS pr_review_agent
@@ -95,7 +100,7 @@ CREATE DATABASE IF NOT EXISTS pr_review_agent
   COLLATE utf8mb4_0900_ai_ci;
 ```
 
-然后在 PowerShell 中设置环境变量后启动：
+然后在 PowerShell 中设置环境变量：
 
 ```powershell
 $env:DB_URL="jdbc:mysql://127.0.0.1:3306/pr_review_agent?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai"
@@ -114,9 +119,70 @@ mvn spring-boot:run
 backend/src/main/resources/application-local.example.yml
 ```
 
+## GitHub PR 获取模块说明
+
+第五模块新增了 GitHub PR 数据获取能力，后端通过 `WebClient` 调用 GitHub REST API。
+
+当前支持：
+
+- 解析 `https://github.com/{owner}/{repo}`
+- 解析 `git@github.com:{owner}/{repo}.git`
+- 获取 PR 标题、描述、作者、源分支、目标分支、状态
+- 获取 changed files、additions、deletions、commits
+- 获取每个 changed file 的 `patch`
+- 支持公开仓库直接访问
+- 支持通过配置 `GITHUB_TOKEN` 缓解 API 频率限制
+- 调用失败时返回明确错误信息
+
+### 相关配置
+
+可通过环境变量配置 GitHub API：
+
+```powershell
+$env:GITHUB_TOKEN="your_github_token"
+$env:GITHUB_API_BASE_URL="https://api.github.com"
+$env:GITHUB_API_TIMEOUT_SECONDS="20"
+$env:GITHUB_API_VERSION="2022-11-28"
+```
+
+说明：
+
+- `GITHUB_TOKEN` 可选，建议配置
+- `GITHUB_API_BASE_URL` 默认值为 `https://api.github.com`
+- `GITHUB_API_TIMEOUT_SECONDS` 默认值为 `20`
+- `GITHUB_API_VERSION` 默认值为 `2022-11-28`
+
+### 临时验收接口
+
+```text
+GET /api/github/pr?repoUrl=xxx&prNumber=1
+```
+
+示例请求：
+
+```text
+GET http://localhost:8080/api/github/pr?repoUrl=https://github.com/cxxjoof/pr-review-agent&prNumber=1
+```
+
+PowerShell 示例：
+
+```powershell
+Invoke-RestMethod "http://localhost:8080/api/github/pr?repoUrl=https://github.com/cxxjoof/pr-review-agent&prNumber=1"
+```
+
+接口返回内容包含：
+
+- 任务 ID
+- 仓库地址、仓库拥有者、仓库名称
+- PR 编号
+- PR 标题、描述、作者
+- 源分支、目标分支、状态
+- 修改文件数、增删行数、提交数
+- changed files 列表与 patch 内容
+
 ## 数据库验收检查
 
-启动成功后，可以执行以下 SQL 检查核心表：
+启动成功后，可执行以下 SQL：
 
 ```sql
 SHOW TABLES;
@@ -132,18 +198,29 @@ risk_item
 model_call_log
 ```
 
-## 后端测试
+第五模块接口调用成功后，可继续检查：
+
+```sql
+SELECT * FROM review_task ORDER BY id DESC;
+SELECT * FROM pull_request_info ORDER BY id DESC;
+```
+
+## 测试
+
+后端测试：
 
 ```bash
 cd backend
 mvn test
 ```
 
-当前仓储层测试会验证：
+当前测试覆盖：
 
-- Repository 能正常装配
-- 5 张核心表的实体可完成基础持久化
-- 按 `task_id`、状态、风险等级等查询可正常执行
+- 健康检查接口
+- JPA Repository 持久化
+- GitHub 仓库地址解析
+- GitHub PR 获取接口成功场景
+- GitHub PR 获取接口失败场景
 
 ## 前端运行
 
@@ -163,20 +240,19 @@ http://localhost:5173
 
 当前尚未完成以下模块：
 
-- GitHub PR 数据获取
 - Diff 解析与上下文构造
-- AI 模型调用
+- AI 模型客户端
 - AI Review 分析
-- Review 任务接口
-- 前端结果展示与联调
+- Review 任务正式接口
+- 前端 Review 结果展示
 - 参数校验与异常处理完善
 - 完整文档与演示材料
 
-本仓库当前重点是保证第四模块完成后，主分支仍可启动、可测试、可继续衔接后续模块。
+当前重点是保证第五模块完成后，主分支仍然可启动、可测试，并能继续衔接后续模块。
 
 ## 配置与安全
 
-请不要提交以下内容到仓库：
+不要提交以下内容到仓库：
 
 - `.env`
 - `application-local.yml`
@@ -188,7 +264,7 @@ http://localhost:5173
 
 ## 参考文档
 
-`docs/` 目录下包含项目开发所需的核心文档：
+`docs/` 目录包含项目开发所需的核心文档：
 
 - `docs/需求分析.md`
 - `docs/技术选型.md`
