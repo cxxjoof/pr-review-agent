@@ -1,10 +1,12 @@
 # AI PR Review 助手
 
-AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应用。用户输入仓库地址和 PR 编号后，系统会获取对应 PR 的变更内容，结合 AI 模型完成分析，并输出结构化的代码审查结果。
+AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应用。用户输入仓库地址和 PR 编号后，系统将获取对应 PR 的变更内容，并结合 AI 模型输出结构化代码审查结果。
+
+当前仓库按照模块化方式逐步开发。现阶段已完成项目基础结构、后端基础服务和前端基础页面，便于后续继续接入 GitHub PR 获取、Diff 解析和 AI Review 流程。
 
 ## 项目目标
 
-系统计划输出以下内容：
+系统最终将输出以下内容：
 
 - PR 变更总结
 - 风险代码识别
@@ -51,58 +53,59 @@ pr-review-agent/
 
 目录说明：
 
-- `backend/`：后端服务代码目录
-- `frontend/`：前端页面代码目录
-- `docs/`：项目需求、设计、计划等文档目录
-- `screenshots/`：演示截图目录，可选使用
+- `backend/`：后端服务代码
+- `frontend/`：前端页面代码
+- `docs/`：需求、技术选型、架构和模块计划文档
+- `screenshots/`：演示截图，可选
+
+## 当前进度
+
+已完成模块：
+
+1. 项目基础结构模块
+2. 后端基础服务模块
+3. 前端基础页面模块
+
+当前可用能力：
+
+- 后端可通过 Spring Boot 启动
+- 提供 `GET /api/health` 健康检查接口
+- 前端可通过 Vite 启动
+- 首页已提供 GitHub 仓库地址输入框
+- 首页已提供 PR 编号输入框
+- 首页已提供“开始分析”按钮
+
+当前尚未完成：
+
+- 数据库实体与仓库层
+- GitHub PR 数据获取
+- Diff 解析与上下文构造
+- AI 模型调用与 AI Review 分析
+- Review 任务接口
+- 前端结果展示与接口联调
 
 ## 项目文档
 
 `docs/` 目录下包含以下核心文档：
 
-- `需求分析.md`
-- `技术选型.md`
-- `架构设计.md`
-- `数据库设计.md`
-- `模块拆分与开发计划.md`
+- `docs/需求分析.md`
+- `docs/技术选型.md`
+- `docs/架构设计.md`
+- `docs/数据库设计.md`
+- `docs/模块拆分与开发计划.md`
 
-其中 `docs/模块拆分与开发计划.md` 是当前开发阶段的主要路线文档。
+其中 `docs/模块拆分与开发计划.md` 是当前开发顺序和模块边界的主要依据。
 
-## 当前进度
+## 本地运行
 
-当前已完成以下模块：
-
-1. 项目基础结构模块
-2. 后端基础服务模块
-
-当前后端已具备：
-
-- Spring Boot 基础工程结构
-- Maven 构建配置
-- 启动类 `PrReviewApplication`
-- 健康检查控制器 `HealthController`
-- `GET /api/health` 接口
-- 基础测试用例
-
-当前尚未完成：
-
-- 前端基础页面
-- 数据库实体与仓库层
-- GitHub PR 数据获取
-- Diff 解析与上下文构造
-- AI 模型调用与 AI Review 分析
-- Review 任务接口与前端完整交互
-
-## 后端运行方式
-
-进入后端目录后启动服务：
+### 启动后端
 
 ```bash
 cd backend
 mvn spring-boot:run
 ```
 
-默认启动地址：
+默认地址：
 
 ```text
 http://localhost:8080
@@ -122,34 +125,51 @@ GET http://localhost:8080/api/health
 }
 ```
 
-运行测试：
+### 启动前端
+
+```bash
+cd frontend
+npm install
+npm run dev
+```
+
+默认地址：
+
+```text
+http://localhost:5173
+```
+
+### 运行后端测试
 
 ```bash
 cd backend
 mvn test
 ```
 
+## 前端基础页面验收
+
+打开 `http://localhost:5173` 后，确认页面满足以下条件：
+
+- 能显示系统标题 `AI PR Review 助手`
+- 包含 `GitHub 仓库地址` 输入框
+- 包含 `PR 编号` 输入框
+- 包含 `开始分析` 按钮
+
+## 配置说明
+
+当前阶段不要求额外环境变量即可运行前端基础页面和后端健康检查。
+
+后续接入 GitHub API、数据库和模型服务时，请通过环境变量或本地忽略配置文件管理敏感信息，不要将以下内容提交到仓库：
+
+- GitHub Token
+- 模型 API Key
+- `.env`
+- `application-local.yml`
+
 ## 开发说明
 
 - 后端代码必须放在 `backend/` 下
 - 前端代码必须放在 `frontend/` 下
 - 项目文档必须放在 `docs/` 下
-- 不要在仓库中提交 API Key、GitHub Token、密码或本地敏感配置
-- 配置项应从 `application.yml`、环境变量或本地忽略配置文件中读取
-
-## 后续开发顺序
-
-根据项目计划，后续模块顺序为：
-
-1. 项目基础结构
-2. 后端基础服务
-3. 前端基础页面
-4. 数据库实体与仓库层
-5. GitHub PR 数据获取
-6. Diff 解析与上下文构造
-7. AI 模型调用
-8. AI Review 分析
-9. Review 任务接口
-10. 前端 Review 交互展示
-11. 异常处理与参数校验
-12. 文档与演示材料
+- 当前开发需严格按模块顺序推进
+- 每次只实现当前指定模块，不提前实现后续功能
