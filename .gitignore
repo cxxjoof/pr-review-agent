@@ -1,0 +1,9 @@
+node_modules/
+target/
+dist/
+.env
+application-local.yml
+.idea/
+.vscode/
+*.log
+
