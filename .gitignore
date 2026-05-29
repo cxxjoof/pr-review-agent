@@ -41,7 +41,17 @@ Thumbs.db
 *.log
 *.pid
 hs_err_pid*
+*.dump
+*.dumpstream
+*.stackdump
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+
+# Local debug artifacts
+*.tmp
+*.temp
+*.bak
+*.orig
+*.rej
