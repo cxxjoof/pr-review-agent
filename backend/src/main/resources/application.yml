@@ -1,0 +1,6 @@
+spring:
+  application:
+    name: pr-review-agent
+
+server:
+  port: 8080
