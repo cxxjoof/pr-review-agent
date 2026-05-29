@@ -1,8 +1,12 @@
 # Frontend
 node_modules/
-dist/
 frontend/node_modules/
+dist/
 frontend/dist/
+coverage/
+frontend/coverage/
+.vite/
+frontend/.vite/
 
 # Backend
 target/
@@ -14,10 +18,16 @@ backend/target/
 application-local.yml
 **/application-local.yml
 
-# IDE
+# IDE and OS files
 .idea/
 .vscode/
 *.iml
+.DS_Store
+Thumbs.db
 
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
