@@ -1,9 +1,23 @@
+# Frontend
 node_modules/
-target/
 dist/
+frontend/node_modules/
+frontend/dist/
+
+# Backend
+target/
+backend/target/
+
+# Local config and secrets
 .env
+.env.*
 application-local.yml
+**/application-local.yml
+
+# IDE
 .idea/
 .vscode/
-*.log
+*.iml
 
+# Logs
+*.log
