@@ -14,3 +14,10 @@ spring:
 github:
   api:
     token: your_github_token
+
+model:
+  api:
+    base-url: https://api.openai.com/v1
+    api-key: your_model_api_key
+    model-name: gpt-4.1-mini
+    timeout-seconds: 60

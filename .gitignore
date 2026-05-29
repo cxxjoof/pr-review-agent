@@ -17,6 +17,8 @@ backend/target/
 .env.*
 .env.local
 .env.*.local
+.env.model
+.env.model.*
 .env.github
 .env.github.*
 application-local.yml
@@ -29,6 +31,10 @@ backend/src/main/resources/*.local.yml
 backend/src/main/resources/*.local.properties
 backend/src/main/resources/github-local.yml
 backend/src/main/resources/github-local.properties
+backend/src/main/resources/model-local.yml
+backend/src/main/resources/model-local.properties
+backend/src/main/resources/model-*.secret.yml
+backend/src/main/resources/model-*.secret.properties
 
 # IDE and OS files
 .idea/

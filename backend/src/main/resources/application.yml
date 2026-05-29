@@ -25,3 +25,10 @@ github:
     token: ${GITHUB_TOKEN:}
     timeout-seconds: ${GITHUB_API_TIMEOUT_SECONDS:20}
     api-version: ${GITHUB_API_VERSION:2022-11-28}
+
+model:
+  api:
+    base-url: ${MODEL_API_BASE_URL:https://api.openai.com/v1}
+    api-key: ${MODEL_API_KEY:}
+    model-name: ${MODEL_API_MODEL:}
+    timeout-seconds: ${MODEL_API_TIMEOUT_SECONDS:60}
