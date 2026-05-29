@@ -14,4 +14,6 @@ public interface RiskItemRepository extends JpaRepository<RiskItem, Long> {
 
     @Query("select r from RiskItem r where r.task.id = :taskId and r.riskLevel = :riskLevel")
     List<RiskItem> findByTaskIdAndRiskLevel(@Param("taskId") Long taskId, @Param("riskLevel") RiskLevel riskLevel);
+
+    void deleteByTask_Id(Long taskId);
 }

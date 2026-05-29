@@ -1,33 +1,39 @@
-# AI PR Review Assistant
+# AI PR Review 助手
 
-AI PR Review Assistant is a full-stack web application for GitHub Pull Request review scenarios.
-Users provide a repository URL and PR number, and the system fetches PR changes, prepares review context, and progressively integrates AI analysis to generate structured review results.
+AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应用。
+用户输入仓库地址和 PR 编号后，系统会获取 PR 变更、构建审查上下文，并逐步接入 AI 分析能力，生成结构化的代码审查结果。
 
-The repository is developed strictly by module. The current completed modules are:
+项目严格按照模块顺序开发。当前已完成的模块包括：
 
-1. Project structure
-2. Backend base service
-3. Frontend base page
-4. Database entities and repositories
-5. GitHub PR data fetching
-6. Diff parsing and review context building
-7. AI model client
+1. 项目结构
+2. 后端基础服务
+3. 前端基础页面
+4. 数据库实体与仓储
+5. GitHub PR 数据获取
+6. Diff 解析与 ReviewContext 构建
+7. AI 模型客户端
+8. AI Review 分析
 
-## Current Capabilities
+## 当前能力
 
-- The backend can start with Spring Boot.
-- `GET /api/health` is available for health checks.
-- JPA mappings for `review_task`, `pull_request_info`, `review_result`, `risk_item`, and `model_call_log` are in place.
-- `GitHubClient` can parse repository URLs and fetch PR metadata and changed files.
-- `DiffParseService` and `ReviewContextBuildService` can convert raw PR patches into structured AI-ready review context.
-- `ModelClient` can call an OpenAI-compatible `chat/completions` API.
-- Model API base URL, API key, model name, and timeout are configurable.
-- Model call metadata is persisted into `model_call_log`.
-- Model-side failures such as unauthorized access, rate limits, timeout, and invalid responses are mapped to clear backend errors.
+- 后端 Spring Boot 服务可以正常启动
+- 提供健康检查接口 `GET /api/health`
+- 已完成 `review_task`、`pull_request_info`、`review_result`、`risk_item`、`model_call_log` 的 JPA 映射
+- `GitHubClient` 可以解析仓库地址并获取 PR 基本信息和改动文件
+- `DiffParseService` 与 `ReviewContextBuildService` 可以将原始 patch 转换为适合 AI 分析的结构化上下文
+- `ModelClient` 可以调用 OpenAI 兼容的 `chat/completions` 接口
+- 模型 API 地址、API Key、模型名称和超时时间均可配置
+- 模型调用元数据会写入 `model_call_log`
+- 模型调用失败时，会将鉴权失败、限流、超时、响应格式异常等情况转换为明确的后端错误
+- `AiReviewService` 已具备基于真实 PR 上下文生成结构化 AI Review 报告的能力
+- AI Review 输出已支持：PR 总结、变更模块、风险项、Review 建议、测试建议、总体结论
+- AI Review 结果会保存到 `review_result`，风险项会保存到 `risk_item`
+- AI Review 执行过程中会更新 `review_task` 的状态和 `risk_count`
+- 当模型返回的 JSON 不可解析时，后端会生成兜底报告，而不是静默失败
 
-## Tech Stack
+## 技术栈
 
-Backend:
+后端：
 
 - Java 21
 - Spring Boot 3.x
@@ -37,19 +43,19 @@ Backend:
 - MySQL
 - Maven
 
-Frontend:
+前端：
 
 - React
 - Vite
 - Ant Design
 - Axios
 
-External services:
+外部服务：
 
 - GitHub REST API
-- OpenAI-compatible model API
+- OpenAI 兼容模型 API
 
-## Repository Structure
+## 仓库结构
 
 ```text
 pr-review-agent/
@@ -62,30 +68,30 @@ pr-review-agent/
 └── .gitignore
 ```
 
-## Backend Run
+## 后端运行
 
-### Requirements
+### 环境要求
 
 - JDK 21
 - Maven 3.9+
-- MySQL 8.x if you want to verify with a real database
+- 如果要验证真实数据库，建议使用 MySQL 8.x
 
-### Start with the default in-memory database
+### 使用默认内存数据库启动
 
-The backend can start with H2 by default for quick verification:
+为了方便快速验证，后端默认可使用 H2 启动：
 
 ```bash
 cd backend
 mvn spring-boot:run
 ```
 
-Health check:
+健康检查：
 
 ```text
 GET http://localhost:8080/api/health
 ```
 
-Expected response:
+预期响应：
 
 ```json
 {
@@ -93,9 +99,9 @@ Expected response:
 }
 ```
 
-### Start with MySQL
+### 使用 MySQL 启动
 
-Create the database first if needed:
+如需使用真实数据库，可先创建数据库：
 
 ```sql
 CREATE DATABASE IF NOT EXISTS pr_review_agent
@@ -103,7 +109,7 @@ CREATE DATABASE IF NOT EXISTS pr_review_agent
   COLLATE utf8mb4_0900_ai_ci;
 ```
 
-Then set environment variables in PowerShell:
+然后在 PowerShell 中设置环境变量：
 
 ```powershell
 $env:DB_URL="jdbc:mysql://127.0.0.1:3306/pr_review_agent?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai"
@@ -116,28 +122,80 @@ cd backend
 mvn spring-boot:run
 ```
 
-You can also use the local example config:
+也可以参考本地示例配置文件：
 
 ```text
 backend/src/main/resources/application-local.example.yml
 ```
 
-## Module 7: AI Model Client
+## 第八模块：AI Review 分析
 
-Module 7 adds the model access layer only. It does not yet generate formal AI review reports and does not add the final review task APIs.
+第八模块基于前面已经完成的 GitHub 获取、Diff 解析、ReviewContext 构建和模型客户端能力，补齐了第一版正式的后端 AI Review 分析流程。
 
-### What was added
+### 第八模块新增内容
 
-- `ModelProperties` for model configuration
-- `ModelConfig` for model `WebClient`
-- `dto/model/` request and response DTOs
-- `ModelClient` for OpenAI-compatible chat completion calls
-- `ModelCallLogService` for persisting model call metadata
-- Unit tests for success and failure paths
+- `AiReviewService`：串联 AI Review 分析主流程
+- `PromptBuildService`：基于 `ReviewContext` 构建结构化 Prompt
+- `dto/review/`：解析 AI Review 报告和风险项
+- `ReviewReportService`：保存 `review_result`
+- `RiskItemService`：保存 `risk_item`
+- `JsonParseUtils`：从模型响应中提取 JSON，兼容 fenced JSON 代码块
+- 模型返回格式异常时的兜底处理
+- 覆盖以下场景的测试：
+  - Prompt 构建
+  - AI Review 成功路径
+  - 无效 JSON 的兜底路径
+  - 模型调用失败路径
 
-### Supported model configuration
+### AI Review 输出结构
 
-The backend now supports these environment variables:
+后端当前要求模型返回结构化 JSON，主要字段包括：
+
+- `summary`
+- `changedModules`
+- `riskItems`
+- `reviewSuggestions`
+- `testSuggestions`
+- `overallConclusion`
+
+其中每个 `riskItems` 条目支持：
+
+- `filePath`
+- `lineNumber`
+- `codeSnippet`
+- `riskLevel`
+- `riskType`
+- `description`
+- `suggestion`
+- `confidence`
+
+### 当前模块边界
+
+第八模块只补齐了后端 AI Review 分析能力，目前还没有实现：
+
+- `POST /api/reviews`
+- `GET /api/reviews/{id}`
+- 前端结果展示页面
+- 前后端完整 Review 工作流
+
+也就是说，AI Review 能力现在已经存在于后端 Service 层，但正式的 Review 任务 API 和 Web 端到端流程仍然属于第九、第十模块。
+
+## 第七模块：AI 模型客户端
+
+第七模块提供的是模型调用基础能力，本身不负责生成正式 AI Review 报告，也不包含最终的 Review 任务接口。
+
+### 第七模块新增内容
+
+- `ModelProperties`：模型配置项
+- `ModelConfig`：模型 `WebClient` 配置
+- `dto/model/`：模型请求与响应 DTO
+- `ModelClient`：OpenAI 兼容聊天接口调用
+- `ModelCallLogService`：模型调用日志落库
+- 成功与失败路径的单元测试
+
+### 支持的模型配置
+
+当前后端支持以下环境变量：
 
 ```powershell
 $env:MODEL_API_BASE_URL="https://api.openai.com/v1"
@@ -146,7 +204,7 @@ $env:MODEL_API_MODEL="gpt-4.1-mini"
 $env:MODEL_API_TIMEOUT_SECONDS="60"
 ```
 
-Config file equivalent:
+对应配置形式如下：
 
 ```yaml
 model:
@@ -157,59 +215,49 @@ model:
     timeout-seconds: ${MODEL_API_TIMEOUT_SECONDS:60}
 ```
 
-### Current model behavior
+### 当前模型客户端行为
 
-- Uses `POST /chat/completions`
-- Supports OpenAI-compatible request and response format
-- Rejects empty request messages
-- Rejects responses without usable assistant content
-- Records success or failure into `model_call_log`
-- Returns clear backend errors for:
-  - invalid API key
-  - rate limit
-  - timeout
-  - invalid upstream response
-  - generic upstream failure
+- 使用 `POST /chat/completions`
+- 支持 OpenAI 兼容的请求和响应格式
+- 拒绝空消息请求
+- 拒绝没有有效 assistant 内容的响应
+- 成功或失败都会记录到 `model_call_log`
+- 对以下失败场景返回明确错误：
+  - API Key 无效
+  - 触发限流
+  - 请求超时
+  - 上游响应格式异常
+  - 通用上游调用失败
 
-### Current module boundary
+## GitHub PR 获取
 
-Module 7 only provides the base model calling capability. It does not yet implement:
-
-- AI review result generation
-- risk item extraction
-- review suggestion generation
-- test suggestion generation
-- formal review APIs such as `POST /api/reviews`
-
-## GitHub PR Fetching
-
-The backend currently provides a temporary acceptance API for the GitHub PR fetching module:
+当前后端为 GitHub PR 获取模块提供了一个临时验收接口：
 
 ```text
 GET /api/github/pr?repoUrl=xxx&prNumber=1
 ```
 
-Example:
+示例：
 
 ```text
 GET http://localhost:8080/api/github/pr?repoUrl=https://github.com/cxxjoof/pr-review-agent&prNumber=1
 ```
 
-PowerShell example:
+PowerShell 示例：
 
 ```powershell
 Invoke-RestMethod "http://localhost:8080/api/github/pr?repoUrl=https://github.com/cxxjoof/pr-review-agent&prNumber=1"
 ```
 
-## Database Verification
+## 数据库验证
 
-After startup, you can check the core tables:
+启动后可以检查核心表是否已创建：
 
 ```sql
 SHOW TABLES;
 ```
 
-Expected tables:
+预期表：
 
 ```text
 review_task
@@ -219,29 +267,40 @@ risk_item
 model_call_log
 ```
 
-For module 7, `model_call_log` is the key verification point.
+其中：
 
-## Test
+- 第七模块重点验证 `model_call_log`
+- 第八模块重点验证：
+  - `review_result`
+  - `risk_item`
+  - `review_task.status`
+  - `review_task.risk_count`
 
-Backend tests:
+## 测试
+
+后端测试：
 
 ```bash
 cd backend
 mvn test
 ```
 
-Current coverage includes:
+当前测试覆盖包括：
 
-- health controller
-- repository persistence
-- GitHub repository URL parsing
-- GitHub PR fetch flow
-- diff parsing
-- review context aggregation
-- model client success and failure paths
-- model call log persistence behavior
+- 健康检查接口
+- Repository 持久化
+- GitHub 仓库地址解析
+- GitHub PR 获取流程
+- Diff 解析
+- ReviewContext 聚合
+- 模型客户端成功与失败路径
+- 模型调用日志落库
+- AI Review Prompt 构建
+- AI Review 成功路径
+- AI Review 无效 JSON 兜底路径
+- AI Review 失败路径及任务状态更新
 
-Frontend run:
+前端运行：
 
 ```bash
 cd frontend
@@ -249,38 +308,49 @@ npm install
 npm run dev
 ```
 
-Frontend URL:
+前端地址：
 
 ```text
 http://localhost:5173
 ```
 
-## Current Development Boundary
+## 当前开发边界
 
-The following modules are not completed yet:
+以下模块尚未完成：
 
-- AI Review analysis
-- Review task APIs
-- frontend review result display
-- validation and exception handling completion
-- final documentation and demo materials
+- Review 任务接口
+- 前端 Review 结果展示
+- 参数校验与异常处理完善
+- 最终文档与演示材料
 
-## Security
+## 真实联调说明
 
-Do not commit the following files or values:
+完成第八模块后，后端已经具备真实模型联调能力，但还不能通过 Web 页面直接完成端到端分析。
+
+当前实际情况：
+
+- 后端 AI Review 能力：已具备
+- 正式 Review API：尚未实现
+- 前端端到端分析页面：尚未实现
+
+如果现在要接入真实模型做联调，下一步建议先完成第九模块 Review API，这样 AI Review 流程才能通过稳定接口触发。
+
+## 安全说明
+
+不要提交以下文件或敏感信息：
 
 - `.env`
 - `application-local.yml`
-- GitHub tokens
-- model API keys
-- database passwords
-- IDE local secrets
+- GitHub Token
+- 模型 API Key
+- 数据库密码
+- IDE 本地敏感配置
 
-Use environment variables or ignored local config files for sensitive values.
+敏感信息请通过环境变量或本地忽略配置文件提供。
 
-## Reference Documents
+## 参考文档
 
-Please check the documents in `docs/` before implementing any module:
+开发前请优先阅读 `docs/` 目录下的文档：
 
 - `docs/需求分析.md`
 - `docs/技术选型.md`
@@ -288,4 +358,4 @@ Please check the documents in `docs/` before implementing any module:
 - `docs/数据库设计.md`
 - `docs/模块拆分与开发计划.md`
 
-`docs/模块拆分与开发计划.md` is the main development roadmap.
+其中 `docs/模块拆分与开发计划.md` 是当前项目的主开发路线图。
