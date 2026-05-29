@@ -9,6 +9,7 @@ AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应�
 3. 前端基础页面
 4. 数据库实体与 Repository
 5. GitHub PR 数据获取
+6. Diff 解析与上下文构造
 
 ## 当前能力
 
@@ -21,6 +22,10 @@ AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应�
 - 支持获取 PR changed files 与每个文件的 `patch` 内容
 - 支持将 PR 基本信息保存到 `review_task` 和 `pull_request_info`
 - 提供第五模块临时验收接口 `GET /api/github/pr`
+- 已完成 `DiffParseService`，支持解析 hunk、新增行、删除行、上下文行与行号
+- 已完成文件变更类型识别与文件类别识别，支持 `BACKEND`、`FRONTEND`、`CONFIG`、`DATABASE`、`TEST` 等分类
+- 已完成 `ReviewContextBuildService`，支持构造结构化 `ReviewContext` 与 AI 可消费的摘要上下文
+- 支持对空 patch、二进制文件或过大文件 patch 缺失场景做兜底处理
 - 前端基础首页已可启动，包含仓库地址、PR 编号输入框和开始分析按钮
 
 ## 技术栈
@@ -180,6 +185,60 @@ Invoke-RestMethod "http://localhost:8080/api/github/pr?repoUrl=https://github.co
 - 修改文件数、增删行数、提交数
 - changed files 列表与 patch 内容
 
+## Diff 解析与上下文构造模块说明
+
+第六模块在第五模块获取到 GitHub PR 文件变更后，继续对每个文件的 `patch` 内容做结构化处理，而不是直接把原始 diff 文本传给后续 AI 模块。
+
+当前新增的核心能力包括：
+
+- `DiffParseService`：按文件解析 GitHub patch
+- `ReviewContextBuildService`：聚合 PR 级别的 Review 上下文
+- `ChangedFileContext`：保存单文件的结构化 diff 结果
+- `DiffLineDTO`：保存单行 diff 的类型、旧行号、新行号和内容
+- `ReviewContext`：保存 PR 级别摘要、模块信息、统计信息和 AI 输入上下文
+- `FileChangeType`：区分 `ADDED`、`MODIFIED`、`REMOVED`、`RENAMED`、`COPIED`
+
+### 当前解析行为
+
+- 识别 hunk 头，例如 `@@ -10,3 +10,4 @@`
+- 提取新增行、删除行和上下文行
+- 为 diff 行保留对应旧行号和新行号
+- 识别文件变更类型
+- 根据路径和后缀识别文件类别
+- 统计单文件 hunk 数、增删行数、上下文行数
+- 汇总 PR 级别的变更规模与模块信息
+- 生成面向 AI 的精简上下文摘要，避免直接传递混乱原始 patch
+
+### 文件类别识别
+
+当前内置的文件类别识别包括：
+
+- `BACKEND`
+- `FRONTEND`
+- `CONFIG`
+- `DATABASE`
+- `TEST`
+- `DOCUMENTATION`
+- `BUILD`
+- `OTHER`
+
+### 空 patch 兜底
+
+对于 GitHub API 未返回 patch 的文件，例如二进制文件、图片文件或超大文件，系统会：
+
+- 标记 `patchAvailable=false`
+- 记录兜底说明 `patchNotice`
+- 保留文件路径、变更类型和统计信息
+- 在构造 AI 上下文时明确提示该文件无 patch 内容
+
+### 当前模块边界
+
+第六模块只负责“解析”和“构造上下文”，当前还没有新增对外 API，也不会在这一阶段提前实现：
+
+- AI 模型调用
+- AI Review 结果生成
+- Review 正式任务接口
+
 ## 数据库验收检查
 
 启动成功后，可执行以下 SQL：
@@ -221,6 +280,9 @@ mvn test
 - GitHub 仓库地址解析
 - GitHub PR 获取接口成功场景
 - GitHub PR 获取接口失败场景
+- Diff patch 行级解析
+- 文件类别识别与空 patch 兜底
+- ReviewContext 聚合与 AI 上下文构造
 
 ## 前端运行
 
@@ -240,7 +302,6 @@ http://localhost:5173
 
 当前尚未完成以下模块：
 
-- Diff 解析与上下文构造
 - AI 模型客户端
 - AI Review 分析
 - Review 任务正式接口
@@ -248,7 +309,7 @@ http://localhost:5173
 - 参数校验与异常处理完善
 - 完整文档与演示材料
 
-当前重点是保证第五模块完成后，主分支仍然可启动、可测试，并能继续衔接后续模块。
+当前重点是保证第六模块完成后，主分支仍然可启动、可测试，并能继续衔接后续模块。
 
 ## 配置与安全
 
