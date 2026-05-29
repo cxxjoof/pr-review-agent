@@ -41,6 +41,7 @@ backend/src/test/resources/*.local.properties
 # IDE and OS files
 .idea/
 .vscode/
+.idea/httpRequests/
 *.iml
 .DS_Store
 Thumbs.db
@@ -63,3 +64,9 @@ pnpm-debug.log*
 *.bak
 *.orig
 *.rej
+
+# Local API testing secrets
+http-client.private.env.json
+*.http-client.private.env.json
+rest-client.env.json
+*.rest-client.env.json
