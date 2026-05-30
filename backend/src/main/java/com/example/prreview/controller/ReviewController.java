@@ -5,6 +5,7 @@ import com.example.prreview.dto.response.ApiResponse;
 import com.example.prreview.dto.response.ReviewResultResponse;
 import com.example.prreview.dto.response.ReviewTaskResponse;
 import com.example.prreview.service.ReviewTaskService;
+import jakarta.validation.Valid;
 import java.util.List;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -24,7 +25,7 @@ public class ReviewController {
     }
 
     @PostMapping
-    public ApiResponse<ReviewTaskResponse> createReviewTask(@RequestBody CreateReviewRequest request) {
+    public ApiResponse<ReviewTaskResponse> createReviewTask(@Valid @RequestBody CreateReviewRequest request) {
         return ApiResponse.success(reviewTaskService.createTask(request));
     }
 

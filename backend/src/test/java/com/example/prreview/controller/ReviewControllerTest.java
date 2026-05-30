@@ -212,6 +212,30 @@ class ReviewControllerTest {
                 .andExpect(jsonPath("$.data[1].overallConclusion").value("Earlier conclusion"));
     }
 
+    @Test
+    void shouldReturnValidationErrorWhenCreateRequestIsInvalid() throws Exception {
+        mockMvc.perform(post("/api/reviews")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "repoUrl": "https://gitlab.com/openai/pr-review-agent",
+                                  "prNumber": 0
+                                }
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message")
+                        .value("prNumber must be a positive number.; repoUrl must be a valid GitHub repository URL."));
+    }
+
+    @Test
+    void shouldReturnValidationErrorWhenTaskIdIsInvalid() throws Exception {
+        mockMvc.perform(get("/api/reviews/{id}", 0))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value(400))
+                .andExpect(jsonPath("$.message").value("taskId must be a positive number."));
+    }
+
     private void mockReviewFlow(int prNumber, String title, String aiResponseJson) {
         GitHubClient.GitHubRepository repository = new GitHubClient.GitHubRepository("openai", "pr-review-agent");
         GitHubPullRequestDTO pullRequest = new GitHubPullRequestDTO(

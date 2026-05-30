@@ -6,6 +6,7 @@ import com.example.prreview.dto.model.ChatCompletionResponse;
 import com.example.prreview.dto.review.AiReviewReportDTO;
 import com.example.prreview.entity.ReviewTask;
 import com.example.prreview.enums.TaskStatus;
+import com.example.prreview.exception.BusinessException;
 import com.example.prreview.repository.ReviewTaskRepository;
 import com.example.prreview.util.JsonParseUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -111,6 +112,10 @@ public class AiReviewService {
     }
 
     private String extractErrorMessage(RuntimeException exception) {
+        if (exception instanceof BusinessException businessException
+                && StringUtils.hasText(businessException.getMessage())) {
+            return compactErrorMessage(businessException.getMessage());
+        }
         if (exception instanceof ResponseStatusException responseStatusException
                 && StringUtils.hasText(responseStatusException.getReason())) {
             return compactErrorMessage(responseStatusException.getReason());

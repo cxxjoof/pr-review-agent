@@ -6,9 +6,13 @@ import com.example.prreview.dto.github.GitHubPullRequestDTO;
 import com.example.prreview.entity.PullRequestInfo;
 import com.example.prreview.entity.ReviewTask;
 import com.example.prreview.enums.TaskStatus;
+import com.example.prreview.exception.BusinessException;
 import com.example.prreview.repository.PullRequestInfoRepository;
 import com.example.prreview.repository.ReviewTaskRepository;
+import com.example.prreview.validator.RepoUrlValidator;
+import org.springframework.util.StringUtils;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class GitHubPrService {
@@ -28,6 +32,8 @@ public class GitHubPrService {
     }
 
     public GitHubPullRequestDTO fetchAndStorePullRequest(String repoUrl, Integer prNumber) {
+        validateInput(repoUrl, prNumber);
+
         GitHubRepository repository = gitHubClient.parseRepository(repoUrl);
         ReviewTask task = createRunningTask(repoUrl, repository, prNumber);
 
@@ -61,10 +67,33 @@ public class GitHubPrService {
             );
         } catch (RuntimeException exception) {
             task.setStatus(TaskStatus.FAILED);
-            task.setErrorMessage(exception.getMessage());
+            task.setErrorMessage(extractErrorMessage(exception));
             reviewTaskRepository.save(task);
             throw exception;
         }
+    }
+
+    private void validateInput(String repoUrl, Integer prNumber) {
+        if (!StringUtils.hasText(repoUrl)) {
+            throw BusinessException.validation("repoUrl must not be blank.");
+        }
+        if (!RepoUrlValidator.isValid(repoUrl)) {
+            throw BusinessException.validation("repoUrl must be a valid GitHub repository URL.");
+        }
+        if (prNumber == null || prNumber <= 0) {
+            throw BusinessException.validation("prNumber must be a positive number.");
+        }
+    }
+
+    private String extractErrorMessage(RuntimeException exception) {
+        if (exception instanceof ResponseStatusException responseStatusException
+                && StringUtils.hasText(responseStatusException.getReason())) {
+            return responseStatusException.getReason();
+        }
+        if (exception == null || !StringUtils.hasText(exception.getMessage())) {
+            return "GitHub pull request fetch failed.";
+        }
+        return exception.getMessage();
     }
 
     private ReviewTask createRunningTask(String repoUrl, GitHubRepository repository, Integer prNumber) {

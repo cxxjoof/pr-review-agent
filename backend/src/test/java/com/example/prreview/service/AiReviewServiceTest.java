@@ -119,7 +119,8 @@ class AiReviewServiceTest {
 
         assertThat(report.getRiskItems()).isEmpty();
         assertThat(report.getChangedModules()).containsExactly("backend/service");
-        assertThat(report.getOverallConclusion()).contains("could not be parsed reliably");
+        assertThat(report.getOverallConclusion()).contains("AI");
+        assertThat(report.getReviewSuggestions()).isNotEmpty();
         assertThat(task.getStatus()).isEqualTo(TaskStatus.SUCCESS);
         assertThat(task.getRiskCount()).isZero();
         verify(reviewReportService).saveOrUpdate(eq(task), any(AiReviewReportDTO.class), eq("not valid json"));

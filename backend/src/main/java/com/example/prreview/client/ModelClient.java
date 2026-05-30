@@ -1,9 +1,12 @@
 package com.example.prreview.client;
 
+import com.example.prreview.common.ResultCode;
 import com.example.prreview.config.ModelProperties;
 import com.example.prreview.dto.model.ChatCompletionRequest;
 import com.example.prreview.dto.model.ChatCompletionResponse;
 import com.example.prreview.entity.ReviewTask;
+import com.example.prreview.exception.BusinessException;
+import com.example.prreview.exception.ModelApiException;
 import com.example.prreview.service.ModelCallLogService;
 import java.time.Duration;
 import java.util.concurrent.TimeoutException;
@@ -12,7 +15,6 @@ import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.server.ResponseStatusException;
 import reactor.core.Exceptions;
 import reactor.core.publisher.Mono;
 
@@ -66,22 +68,22 @@ public class ModelClient {
                     elapsedMillis(startTime)
             );
             return response;
-        } catch (ResponseStatusException exception) {
+        } catch (BusinessException exception) {
             modelCallLogService.recordFailure(
                     task,
                     actualCallType,
                     actualRequest.getModel(),
-                    exception.getReason(),
+                    exception.getMessage(),
                     elapsedMillis(startTime)
             );
             throw exception;
         } catch (RuntimeException exception) {
-            ResponseStatusException mappedException = mapUnexpectedException(exception);
+            ModelApiException mappedException = mapUnexpectedException(exception);
             modelCallLogService.recordFailure(
                     task,
                     actualCallType,
                     actualRequest.getModel(),
-                    mappedException.getReason(),
+                    mappedException.getMessage(),
                     elapsedMillis(startTime)
             );
             throw mappedException;
@@ -96,19 +98,19 @@ public class ModelClient {
 
     private ChatCompletionRequest prepareRequest(ChatCompletionRequest request) {
         if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Chat completion request must not be null.");
+            throw BusinessException.validation("Chat completion request must not be null.");
         }
         if (request.getMessages() == null || request.getMessages().isEmpty()) {
-            throw new ResponseStatusException(
-                    HttpStatus.BAD_REQUEST,
+            throw BusinessException.validation(
                     "Chat completion request must include at least one message."
             );
         }
 
         if (!StringUtils.hasText(request.getModel())) {
             if (!StringUtils.hasText(modelProperties.getModelName())) {
-                throw new ResponseStatusException(
+                throw new ModelApiException(
                         HttpStatus.INTERNAL_SERVER_ERROR,
+                        ResultCode.INTERNAL_ERROR,
                         "Model name is not configured. Set MODEL_API_MODEL before calling the model API."
                 );
             }
@@ -120,11 +122,16 @@ public class ModelClient {
 
     private void validateResponse(ChatCompletionResponse response) {
         if (response == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_GATEWAY, "Model API returned an empty response.");
+            throw new ModelApiException(
+                    HttpStatus.BAD_GATEWAY,
+                    ResultCode.MODEL_API_ERROR,
+                    "Model API returned an empty response."
+            );
         }
         if (!StringUtils.hasText(response.getFirstMessageContent())) {
-            throw new ResponseStatusException(
+            throw new ModelApiException(
                     HttpStatus.BAD_GATEWAY,
+                    ResultCode.MODEL_API_ERROR,
                     "Model API returned an invalid chat completion response."
             );
         }
@@ -134,41 +141,46 @@ public class ModelClient {
         return Duration.ofSeconds(modelProperties.getTimeoutSeconds());
     }
 
-    private ResponseStatusException mapToModelException(HttpStatusCode statusCode, String responseBody) {
+    private ModelApiException mapToModelException(HttpStatusCode statusCode, String responseBody) {
         if (statusCode.value() == HttpStatus.UNAUTHORIZED.value()) {
-            return new ResponseStatusException(
+            return new ModelApiException(
                     HttpStatus.UNAUTHORIZED,
+                    ResultCode.UNAUTHORIZED,
                     "Model API key is invalid or missing required access."
             );
         }
 
         if (statusCode.value() == HttpStatus.TOO_MANY_REQUESTS.value()) {
-            return new ResponseStatusException(
+            return new ModelApiException(
                     HttpStatus.TOO_MANY_REQUESTS,
+                    ResultCode.RATE_LIMITED,
                     "Model API rate limit exceeded. Retry later or use another model provider configuration."
             );
         }
 
-        return new ResponseStatusException(
+        return new ModelApiException(
                 HttpStatus.BAD_GATEWAY,
-                "Model API request failed. HTTP status: %s, response: %s"
-                        .formatted(statusCode.value(), compactBody(responseBody))
+                ResultCode.MODEL_API_ERROR,
+                "Model API request failed with HTTP status %s."
+                        .formatted(statusCode.value())
         );
     }
 
-    private ResponseStatusException mapUnexpectedException(RuntimeException exception) {
+    private ModelApiException mapUnexpectedException(RuntimeException exception) {
         Throwable rootCause = Exceptions.unwrap(exception);
         if (rootCause instanceof TimeoutException) {
-            return new ResponseStatusException(
+            return new ModelApiException(
                     HttpStatus.GATEWAY_TIMEOUT,
+                    ResultCode.GATEWAY_TIMEOUT,
                     "Model API request timed out after %d seconds."
                             .formatted(modelProperties.getTimeoutSeconds())
             );
         }
 
-        return new ResponseStatusException(
+        return new ModelApiException(
                 HttpStatus.BAD_GATEWAY,
-                "Model API request failed: " + compactBody(rootCause == null ? exception.getMessage() : rootCause.getMessage())
+                ResultCode.MODEL_API_ERROR,
+                "Model API request failed. Please retry later."
         );
     }
 
@@ -176,12 +188,4 @@ public class ModelClient {
         return (System.nanoTime() - startTime) / 1_000_000;
     }
 
-    private String compactBody(String body) {
-        if (!StringUtils.hasText(body)) {
-            return "empty";
-        }
-
-        String compacted = body.replaceAll("\\s+", " ").trim();
-        return compacted.length() > 200 ? compacted.substring(0, 200) + "..." : compacted;
-    }
 }

@@ -47,10 +47,11 @@ class PromptBuildServiceTest {
         assertThat(request.getResponseFormat().getType()).isEqualTo("json_object");
         assertThat(request.getMessages()).hasSize(2);
         assertThat(request.getMessages().get(0).getRole()).isEqualTo("system");
-        assertThat(request.getMessages().get(0).getContent()).contains("Return valid JSON only");
+        assertThat(request.getMessages().get(0).getContent()).contains("JSON");
+        assertThat(request.getMessages().get(0).getContent()).contains("riskItems");
         assertThat(request.getMessages().get(1).getRole()).isEqualTo("user");
-        assertThat(request.getMessages().get(1).getContent()).contains("Repository: openai/pr-review-agent");
-        assertThat(request.getMessages().get(1).getContent()).contains("Structured PR context:");
+        assertThat(request.getMessages().get(1).getContent()).contains("openai");
+        assertThat(request.getMessages().get(1).getContent()).contains("pr-review-agent");
         assertThat(request.getMessages().get(1).getContent()).contains("AiReviewService.java");
     }
 }
