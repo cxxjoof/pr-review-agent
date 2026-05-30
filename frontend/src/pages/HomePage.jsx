@@ -1,6 +1,19 @@
-import { useState } from "react";
-import { Alert, Card, Col, message, Row, Space, Tag, Typography } from "antd";
+import { startTransition, useState } from "react";
+import {
+  Alert,
+  Card,
+  Col,
+  message,
+  Row,
+  Space,
+  Statistic,
+  Tag,
+  Typography
+} from "antd";
 import PrInputForm from "../components/PrInputForm.jsx";
+import LoadingStatus from "../components/LoadingStatus.jsx";
+import ReviewResultPage from "./ReviewResultPage.jsx";
+import { createReviewTask, getReviewResult } from "../api/reviewApi.js";
 
 const featureTags = [
   "PR 变更总结",
@@ -12,19 +25,55 @@ const featureTags = [
 function HomePage() {
   const [messageApi, contextHolder] = message.useMessage();
   const [submitting, setSubmitting] = useState(false);
+  const [loadingStep, setLoadingStep] = useState(1);
+  const [submitError, setSubmitError] = useState("");
   const [lastSubmission, setLastSubmission] = useState(null);
+  const [reviewDetail, setReviewDetail] = useState(null);
 
   const handleSubmit = async (values) => {
     setSubmitting(true);
-
-    await new Promise((resolve) => {
-      window.setTimeout(resolve, 900);
-    });
-
+    setSubmitError("");
+    setReviewDetail(null);
     setLastSubmission(values);
-    setSubmitting(false);
-    messageApi.success("前端基础页面已就绪，后续模块会在这里接入真实分析流程。");
+    setLoadingStep(1);
+
+    try {
+      setLoadingStep(2);
+      const task = await createReviewTask(values);
+      setLoadingStep(3);
+
+      const detail = await getReviewResult(task.taskId);
+      startTransition(() => {
+        setReviewDetail(detail);
+      });
+      messageApi.success("AI Review 报告已生成。");
+    } catch (error) {
+      setSubmitError(error.message || "分析失败，请稍后重试。");
+      messageApi.error("分析任务执行失败。");
+    } finally {
+      setSubmitting(false);
+    }
   };
+
+  const handleReset = () => {
+    setReviewDetail(null);
+    setSubmitError("");
+    setSubmitting(false);
+    setLoadingStep(1);
+  };
+
+  if (reviewDetail) {
+    return (
+      <>
+        {contextHolder}
+        <ReviewResultPage
+          reviewDetail={reviewDetail}
+          onBack={handleReset}
+          onAnalyzeAnother={handleReset}
+        />
+      </>
+    );
+  }
 
   return (
     <>
@@ -59,14 +108,32 @@ function HomePage() {
                 <Card className="info-card" bordered={false}>
                   <Typography.Title level={4}>当前模块范围</Typography.Title>
                   <Typography.Paragraph>
-                    本阶段仅实现前端基础首页和 PR 输入表单，不调用后端接口，
-                    不展示最终 Review 报告。
+                    当前实现严格对应开发计划的第十模块：前端对接 Review 接口，
+                    展示加载状态、PR 基本信息、风险项、Review 建议和测试建议。
                   </Typography.Paragraph>
                 </Card>
               </Space>
             </Col>
             <Col xs={24} lg={11}>
-              <PrInputForm loading={submitting} onSubmit={handleSubmit} />
+              {submitting && lastSubmission ? (
+                <LoadingStatus
+                  currentStep={loadingStep}
+                  repoUrl={lastSubmission.repoUrl}
+                  prNumber={lastSubmission.prNumber}
+                />
+              ) : (
+                <Space direction="vertical" size={16} className="full-width">
+                  {submitError ? (
+                    <Alert
+                      type="error"
+                      showIcon
+                      message="分析失败"
+                      description={submitError}
+                    />
+                  ) : null}
+                  <PrInputForm loading={submitting} onSubmit={handleSubmit} />
+                </Space>
+              )}
             </Col>
           </Row>
 
@@ -84,19 +151,24 @@ function HomePage() {
             </Col>
             <Col xs={24} md={12}>
               <Card className="status-card" bordered={false}>
-                <Typography.Title level={4}>最近一次表单输入</Typography.Title>
+                <Typography.Title level={4}>本次联调目标</Typography.Title>
                 {lastSubmission ? (
-                  <Space direction="vertical" size={8}>
+                  <Space direction="vertical" size={16} className="full-width">
+                    <Statistic
+                      title="最近一次 PR 编号"
+                      value={lastSubmission.prNumber}
+                      className="result-statistic"
+                    />
                     <Typography.Text>
-                      仓库地址：{lastSubmission.repoUrl}
+                      最近一次仓库地址：{lastSubmission.repoUrl}
                     </Typography.Text>
-                    <Typography.Text>
-                      PR 编号：{lastSubmission.prNumber}
-                    </Typography.Text>
+                    <Typography.Paragraph className="empty-state">
+                      提交成功后会自动读取详细报告，并切换到完整的结果展示页。
+                    </Typography.Paragraph>
                   </Space>
                 ) : (
                   <Typography.Paragraph className="empty-state">
-                    还没有提交表单。你可以先输入示例仓库地址，体验基础交互和加载状态。
+                    还没有提交表单。你可以先输入示例仓库地址，体验真实的前后端联调流程。
                   </Typography.Paragraph>
                 )}
               </Card>
