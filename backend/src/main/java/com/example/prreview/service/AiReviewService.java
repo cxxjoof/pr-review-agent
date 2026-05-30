@@ -98,15 +98,15 @@ public class AiReviewService {
 
     private AiReviewReportDTO buildFallbackReport(List<String> defaultChangedModules) {
         AiReviewReportDTO fallback = new AiReviewReportDTO();
-        fallback.setSummary("The model returned an unparsable review report, so a fallback summary was generated.");
+        fallback.setSummary("模型返回内容无法按预期解析，系统已生成一份兜底评审摘要。");
         fallback.setChangedModules(defaultChangedModules == null ? List.of() : defaultChangedModules);
         fallback.setReviewSuggestions(List.of(
-                "Retry the AI review after verifying the model returns the required JSON structure."
+                "请检查模型是否严格按照约定的 JSON 结构返回结果，然后重新发起 AI 评审。"
         ));
         fallback.setTestSuggestions(List.of(
-                "Re-run the review flow and confirm the model output can be parsed into structured review data."
+                "建议重新执行评审流程，并确认模型输出能够被解析为结构化评审数据。"
         ));
-        fallback.setOverallConclusion("AI analysis completed, but the structured review payload could not be parsed reliably.");
+        fallback.setOverallConclusion("AI 分析已执行完成，但结构化评审结果解析失败，当前展示的是兜底结果。");
         return fallback.normalize(defaultChangedModules);
     }
 
@@ -121,7 +121,7 @@ public class AiReviewService {
 
     private String compactErrorMessage(String errorMessage) {
         if (!StringUtils.hasText(errorMessage)) {
-            return "AI review analysis failed.";
+            return "AI Review 分析失败。";
         }
 
         String compacted = errorMessage.replaceAll("\\s+", " ").trim();
