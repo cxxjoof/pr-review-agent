@@ -12,6 +12,10 @@ function unwrapResponse(response) {
     throw new Error("后端返回了无法识别的响应格式。");
   }
 
+  if (payload.code && payload.code !== 200) {
+    throw new Error(payload.message || "Request failed.");
+  }
+
   return payload.data;
 }
 

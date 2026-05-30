@@ -11,6 +11,7 @@ import com.example.prreview.dto.model.ChatCompletionRequest;
 import com.example.prreview.dto.model.ChatCompletionResponse;
 import com.example.prreview.dto.model.ChatMessage;
 import com.example.prreview.entity.ReviewTask;
+import com.example.prreview.exception.ModelApiException;
 import com.example.prreview.service.ModelCallLogService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -19,7 +20,6 @@ import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.server.ResponseStatusException;
 
 class ModelClientTest {
 
@@ -94,10 +94,10 @@ class ModelClientTest {
         );
 
         assertThatThrownBy(() -> modelClient.chatCompletion(buildTask(), "SUMMARY", buildRequest()))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(ModelApiException.class)
                 .satisfies(throwable -> {
-                    ResponseStatusException exception = (ResponseStatusException) throwable;
-                    assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_GATEWAY);
+                    ModelApiException exception = (ModelApiException) throwable;
+                    assertThat(exception.getStatus()).isEqualTo(HttpStatus.BAD_GATEWAY);
                 });
 
         verify(modelCallLogService).recordFailure(
@@ -127,11 +127,11 @@ class ModelClientTest {
         );
 
         assertThatThrownBy(() -> modelClient.chatCompletion(buildTask(), "SUMMARY", buildRequest()))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(ModelApiException.class)
                 .satisfies(throwable -> {
-                    ResponseStatusException exception = (ResponseStatusException) throwable;
-                    assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.UNAUTHORIZED);
-                    assertThat(exception.getReason()).isEqualTo("Model API key is invalid or missing required access.");
+                    ModelApiException exception = (ModelApiException) throwable;
+                    assertThat(exception.getStatus()).isEqualTo(HttpStatus.UNAUTHORIZED);
+                    assertThat(exception.getMessage()).isEqualTo("Model API key is invalid or missing required access.");
                 });
 
         verify(modelCallLogService).recordFailure(

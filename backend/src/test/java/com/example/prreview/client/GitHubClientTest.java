@@ -4,10 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import com.example.prreview.config.GitHubProperties;
+import com.example.prreview.exception.BusinessException;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.reactive.function.client.WebClient;
-import org.springframework.web.server.ResponseStatusException;
 
 class GitHubClientTest {
 
@@ -34,10 +34,11 @@ class GitHubClientTest {
     @Test
     void shouldRejectInvalidRepositoryUrl() {
         assertThatThrownBy(() -> gitHubClient.parseRepository("https://gitlab.com/openai/pr-review-agent"))
-                .isInstanceOf(ResponseStatusException.class)
+                .isInstanceOf(BusinessException.class)
                 .satisfies(throwable -> {
-                    ResponseStatusException exception = (ResponseStatusException) throwable;
-                    assertThat(exception.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    BusinessException exception = (BusinessException) throwable;
+                    assertThat(exception.getStatus()).isEqualTo(HttpStatus.BAD_REQUEST);
+                    assertThat(exception.getMessage()).isEqualTo("repoUrl must be a valid GitHub repository URL.");
                 });
     }
 }

@@ -124,6 +124,6 @@ class GitHubControllerTest {
         assertThat(tasks).hasSize(1);
         ReviewTask task = tasks.get(0);
         assertThat(task.getStatus()).isEqualTo(TaskStatus.FAILED);
-        assertThat(task.getErrorMessage()).contains("404 NOT_FOUND");
+        assertThat(task.getErrorMessage()).isEqualTo("PR not found");
     }
 }
