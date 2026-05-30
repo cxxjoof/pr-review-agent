@@ -9,6 +9,7 @@ import com.example.prreview.entity.PullRequestInfo;
 import com.example.prreview.entity.ReviewResult;
 import com.example.prreview.entity.ReviewTask;
 import com.example.prreview.entity.RiskItem;
+import com.example.prreview.exception.BusinessException;
 import com.example.prreview.repository.PullRequestInfoRepository;
 import com.example.prreview.repository.ReviewResultRepository;
 import com.example.prreview.repository.ReviewTaskRepository;
@@ -17,10 +18,8 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import org.springframework.data.domain.Sort;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 
 @Service
 public class ReviewTaskService {
@@ -55,7 +54,9 @@ public class ReviewTaskService {
     }
 
     public ReviewTaskResponse createTask(CreateReviewRequest request) {
-        validateCreateRequest(request);
+        if (request == null) {
+            throw BusinessException.validation("Request body must not be null.");
+        }
 
         GitHubPullRequestDTO pullRequest = gitHubPrService.fetchAndStorePullRequest(
                 request.repoUrl().trim(),
@@ -71,7 +72,7 @@ public class ReviewTaskService {
 
     public ReviewResultResponse getTaskById(Long taskId) {
         if (taskId == null || taskId <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "taskId must be a positive number.");
+            throw BusinessException.validation("taskId must be a positive number.");
         }
 
         ReviewTask task = findTask(taskId);
@@ -98,21 +99,9 @@ public class ReviewTaskService {
                 .toList();
     }
 
-    private void validateCreateRequest(CreateReviewRequest request) {
-        if (request == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body must not be null.");
-        }
-        if (!StringUtils.hasText(request.repoUrl())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "repoUrl must not be blank.");
-        }
-        if (request.prNumber() == null || request.prNumber() <= 0) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "prNumber must be a positive number.");
-        }
-    }
-
     private ReviewTask findTask(Long taskId) {
         return reviewTaskRepository.findById(taskId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Review task not found."));
+                .orElseThrow(() -> BusinessException.notFound("Review task not found."));
     }
 
     private ReviewTaskResponse toTaskResponse(ReviewTask task, ReviewResult reviewResult) {
