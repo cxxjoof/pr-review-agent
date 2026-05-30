@@ -1,4 +1,4 @@
-# Frontend
+# Frontend dependencies and build output
 node_modules/
 frontend/node_modules/
 dist/
@@ -10,24 +10,27 @@ frontend/.vite/
 .parcel-cache/
 frontend/.parcel-cache/
 
-# Backend
+# Backend build output
 target/
 backend/target/
+out/
+backend/out/
+*.class
 
-# Local config and secrets
+# Local environment and secret files
 .env
 .env.*
 .env.local
 .env.*.local
-.env.model
-.env.model.*
-.env.github
-.env.github.*
+frontend/.env
+frontend/.env.*
+backend/.env
+backend/.env.*
 application-local.yml
 application-local.yaml
+application-local.properties
 **/application-local.yml
 **/application-local.yaml
-application-local.properties
 **/application-local.properties
 backend/src/main/resources/application-local.yml
 backend/src/main/resources/application-local.yaml
@@ -38,30 +41,26 @@ backend/src/main/resources/application-local-*.properties
 backend/src/main/resources/*.local.yml
 backend/src/main/resources/*.local.yaml
 backend/src/main/resources/*.local.properties
-backend/src/main/resources/github-local.yml
-backend/src/main/resources/github-local.yaml
-backend/src/main/resources/github-local.properties
-backend/src/main/resources/model-local.yml
-backend/src/main/resources/model-local.yaml
-backend/src/main/resources/model-local.properties
-backend/src/main/resources/model-*.secret.yml
-backend/src/main/resources/model-*.secret.yaml
-backend/src/main/resources/model-*.secret.properties
+backend/src/main/resources/*.secret.yml
+backend/src/main/resources/*.secret.yaml
+backend/src/main/resources/*.secret.properties
 backend/src/test/resources/*.local.yml
 backend/src/test/resources/*.local.yaml
 backend/src/test/resources/*.local.properties
+*.pem
+*.key
+*.p12
+*.jks
 
-# IDE and OS files
-.idea/
-.vscode/
-.idea/httpRequests/
-*.iml
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
+# Local databases and runtime data
+*.h2.db
+*.trace.db
+*.mv.db
 *.pid
+
+# Logs and crash dumps
+*.log
+logs/
 hs_err_pid*
 *.dump
 *.dumpstream
@@ -71,14 +70,27 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Local debug artifacts
+# IDE and OS files
+.idea/
+.vscode/
+.idea/httpRequests/
+.settings/
+.classpath
+.project
+*.iml
+.DS_Store
+Thumbs.db
+
+# Temporary and merge artifacts
 *.tmp
 *.temp
 *.bak
 *.orig
 *.rej
+*.swp
+*.swo
 
-# Local API testing secrets
+# Local API client secrets
 http-client.private.env.json
 *.http-client.private.env.json
 rest-client.env.json

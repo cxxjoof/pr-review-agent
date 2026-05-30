@@ -1,96 +1,140 @@
-# AI PR Review 助手
+# AI PR Review Assistant
 
-AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应用。用户输入仓库地址和 PR 编号后，系统会获取 PR 变更、构建审查上下文、调用 OpenAI 兼容模型生成结构化 Review 报告，并将任务、PR 信息、分析结果和风险项保存到数据库。
+AI PR Review Assistant is a full-stack web application for reviewing GitHub Pull Requests with an AI model.
 
-项目按照 [docs/模块拆分与开发计划.md](/C:/pr-review-agent/docs/模块拆分与开发计划.md) 逐步推进，当前已经完成到第十模块“前端 Review 工作流与结果展示”。
+Users provide a GitHub repository URL and a pull request number. The system fetches PR metadata and changed files from GitHub, parses the diff into structured review context, calls an OpenAI-compatible model, and generates:
 
-## 当前完成模块
+- PR summary
+- changed modules
+- risk items
+- review suggestions
+- test suggestions
+- overall conclusion
 
-1. 项目结构
-2. 后端基础服务
-3. 前端基础页面
-4. 数据库实体与仓储
-5. GitHub PR 数据获取
-6. Diff 解析与 ReviewContext 构建
-7. AI 模型客户端
-8. AI Review 分析
-9. Review 任务接口
-10. 前端 Review 工作流与结果展示
+The project includes a Spring Boot backend, a React frontend, persistent review records, and unified validation and exception handling for the end-to-end review flow.
 
-## 当前能力
+## Table of Contents
 
-- 后端可提供 `GET /api/health`、`POST /api/reviews`、`GET /api/reviews/{id}`、`GET /api/reviews`
-- GitHub PR 信息、改动文件、patch/diff 可被拉取并结构化处理
-- AI Review 结果会落库到 `review_task`、`pull_request_info`、`review_result`、`risk_item`、`model_call_log`
-- 前端已具备完整分析链路：
-  - 输入 GitHub 仓库地址和 PR 编号
-  - 提交分析请求
-  - 展示加载状态
-  - 展示 PR 基本信息、变更总结、风险项、Review 建议、测试建议和总体评价
-  - 展示错误提示
-- 当前模型提示词已强制要求中文输出，前端风险等级与风险类型也以中文展示
+- [Features](#features)
+- [Tech Stack](#tech-stack)
+- [Architecture](#architecture)
+- [Repository Structure](#repository-structure)
+- [Getting Started](#getting-started)
+- [Configuration](#configuration)
+- [API Overview](#api-overview)
+- [Database](#database)
+- [Testing](#testing)
+- [Common Issues](#common-issues)
+- [Documentation](#documentation)
 
-## 技术栈
+## Features
 
-后端：
+- Submit a review task with a public GitHub repository URL and PR number
+- Fetch PR title, author, branch information, changed files, and patch content from GitHub REST API
+- Parse diffs into structured review context instead of sending raw patches directly to the model
+- Generate structured AI review reports through an OpenAI-compatible chat completion API
+- Persist review tasks, PR metadata, AI review results, risk items, and model call logs
+- Display loading states, review summaries, risk items, suggestions, and error messages in the frontend
+- Return unified backend responses and clear error messages for validation errors, upstream failures, and timeout scenarios
+
+## Tech Stack
+
+### Backend
 
 - Java 21
 - Spring Boot 3.x
 - Spring Web
 - Spring WebFlux `WebClient`
 - Spring Data JPA
-- MySQL
 - Maven
+- MySQL
+- H2 for local quick start
 
-前端：
+### Frontend
 
 - React
 - Vite
 - Ant Design
 - Axios
 
-外部服务：
+### External Services
 
 - GitHub REST API
-- OpenAI 兼容模型 API
+- OpenAI-compatible model API
 
-## 仓库结构
+## Architecture
+
+The application follows a standard frontend-backend separation:
+
+1. The user submits `repoUrl` and `prNumber` from the React UI.
+2. The Spring Boot backend validates the request and creates a review task.
+3. `GitHubClient` fetches PR metadata and changed files from GitHub.
+4. The diff parsing layer converts raw patch data into structured review context.
+5. `ModelClient` sends the prompt to an OpenAI-compatible model API.
+6. The backend parses the model output and stores the review result and risk items.
+7. The frontend displays the final report and any task errors in a readable format.
+
+## Repository Structure
 
 ```text
 pr-review-agent/
-├── backend/
-├── frontend/
-├── docs/
-├── screenshots/
+├── backend/        # Spring Boot backend
+├── frontend/       # React + Vite frontend
+├── docs/           # project documents
+├── screenshots/    # optional demo screenshots
 ├── README.md
 ├── AGENTS.md
 └── .gitignore
 ```
 
-## 后端启动
+## Getting Started
 
-### 环境要求
+### Prerequisites
 
-- JDK 21 或更高版本
-- Maven 3.9+
-- 如需验证真实数据库，建议使用 MySQL 8.x
+Make sure the following tools are available in your environment:
 
-### 默认启动方式
+- JDK 21 or later
+- Maven 3.9 or later
+- Node.js 18 or later
+- npm 9 or later
+- MySQL 8.x if you want to run with a real database
 
-后端默认使用 H2 内存数据库，可以快速本地验证：
+### 1. Clone the Repository
+
+```bash
+git clone <your-repository-url>
+cd pr-review-agent
+```
+
+### 2. Start the Backend
+
+The backend can run in two common modes:
+
+- Quick start with the default in-memory H2 database
+- Local development with MySQL and external API credentials
+
+#### Quick Start with H2
+
+This mode is the fastest way to verify that the backend can start.
 
 ```bash
 cd backend
 mvn spring-boot:run
 ```
 
-健康检查：
+Backend URL:
 
 ```text
+http://localhost:8080
+```
+
+Health check:
+
+```http
 GET http://localhost:8080/api/health
 ```
 
-预期响应：
+Expected response:
 
 ```json
 {
@@ -98,29 +142,9 @@ GET http://localhost:8080/api/health
 }
 ```
 
-### 使用本地忽略配置启动
+#### Run with MySQL
 
-如果你在本地准备了 `backend/src/main/resources/application-local.yml`，建议启用 `local` profile：
-
-```powershell
-$env:SPRING_PROFILES_ACTIVE="local"
-cd backend
-mvn spring-boot:run
-```
-
-如果机器上的默认 `java` 不是 21+，需要先切换 `JAVA_HOME`。例如在 PowerShell 中：
-
-```powershell
-$env:JAVA_HOME="C:\Path\To\JDK21"
-$env:Path="$env:JAVA_HOME\bin;$env:Path"
-$env:SPRING_PROFILES_ACTIVE="local"
-cd backend
-mvn spring-boot:run
-```
-
-### 使用 MySQL 启动
-
-如需接入真实数据库，可先创建数据库：
+Create a local database first:
 
 ```sql
 CREATE DATABASE IF NOT EXISTS pr_review_agent
@@ -128,20 +152,7 @@ CREATE DATABASE IF NOT EXISTS pr_review_agent
   COLLATE utf8mb4_0900_ai_ci;
 ```
 
-然后通过环境变量或本地忽略配置文件提供以下信息：
-
-- `DB_URL`
-- `DB_USERNAME`
-- `DB_PASSWORD`
-- `DB_DRIVER`
-- `JPA_DIALECT`
-- `GITHUB_TOKEN`（可选，公开仓库不是必须）
-- `MODEL_API_BASE_URL`
-- `MODEL_API_KEY`
-- `MODEL_API_MODEL`
-- `MODEL_API_TIMEOUT_SECONDS`（可选）
-
-示例：
+Then provide the required environment variables before starting the backend:
 
 ```powershell
 $env:DB_URL="jdbc:mysql://127.0.0.1:3306/pr_review_agent?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai"
@@ -159,13 +170,13 @@ cd backend
 mvn spring-boot:run
 ```
 
-可参考本地示例文件：
+You can also copy the example local config and maintain your own ignored local file:
 
 ```text
 backend/src/main/resources/application-local.example.yml
 ```
 
-## 前端启动
+### 3. Start the Frontend
 
 ```bash
 cd frontend
@@ -173,38 +184,69 @@ npm install
 npm run dev
 ```
 
-前端地址：
+Frontend URL:
 
 ```text
 http://localhost:5173
 ```
 
-说明：
-
-- 前端通过 Vite 代理把 `/api` 转发到 `http://localhost:8080`
-- 启动前端前，请先确保后端已经可用
-
-## 第十模块联调方式
-
-前端当前已接入完整 Review 工作流，推荐按下面步骤验证：
-
-1. 启动后端
-2. 启动前端
-3. 打开 `http://localhost:5173`
-4. 输入公开 GitHub 仓库地址和 PR 编号
-5. 点击“开始分析”
-6. 检查加载态、结果页和错误提示
-
-推荐使用已验证可用的公开 PR：
+The Vite dev server proxies `/api` requests to:
 
 ```text
-仓库地址：https://github.com/octocat/Hello-World
-PR 编号：1
+http://localhost:8080
 ```
 
-## Review API
+### 4. Try the Full Review Flow
 
-### 1. 创建 Review 任务
+1. Start the backend
+2. Start the frontend
+3. Open `http://localhost:5173`
+4. Enter a public GitHub repository URL
+5. Enter a PR number
+6. Submit the review task
+7. Check the generated review report and any error prompts
+
+## Configuration
+
+The backend reads configuration from `application.yml`, environment variables, or local ignored files.
+
+### Backend Environment Variables
+
+| Variable | Required | Description |
+| --- | --- | --- |
+| `DB_URL` | No | Database JDBC URL. Defaults to H2 in-memory |
+| `DB_USERNAME` | No | Database username |
+| `DB_PASSWORD` | No | Database password |
+| `DB_DRIVER` | No | JDBC driver class |
+| `JPA_DIALECT` | No | Hibernate dialect |
+| `GITHUB_API_BASE_URL` | No | GitHub API base URL |
+| `GITHUB_TOKEN` | No | Optional GitHub token. Helps with rate limits |
+| `GITHUB_API_TIMEOUT_SECONDS` | No | GitHub API timeout in seconds |
+| `GITHUB_API_VERSION` | No | GitHub API version header |
+| `MODEL_API_BASE_URL` | Yes for real AI review | OpenAI-compatible API base URL |
+| `MODEL_API_KEY` | Yes for real AI review | Model provider API key |
+| `MODEL_API_MODEL` | Yes for real AI review | Model name |
+| `MODEL_API_TIMEOUT_SECONDS` | No | Model API timeout in seconds |
+
+### Local Ignored Configuration
+
+Recommended local files:
+
+- `backend/src/main/resources/application-local.yml`
+- `.env`
+- any local-only secret file already covered by `.gitignore`
+
+Do not commit tokens, API keys, passwords, or local secret config files.
+
+## API Overview
+
+### Health Check
+
+```http
+GET /api/health
+```
+
+### Create Review Task
 
 ```http
 POST /api/reviews
@@ -216,7 +258,7 @@ Content-Type: application/json
 }
 ```
 
-成功响应示例：
+Example success response:
 
 ```json
 {
@@ -229,117 +271,144 @@ Content-Type: application/json
     "repoName": "Hello-World",
     "prNumber": 1,
     "status": "SUCCESS",
-    "riskCount": 4,
-    "summary": "该 PR 修改了 README 文件，并新增了若干 Git 初始化示例。",
-    "overallConclusion": "当前变更以文档更新为主，建议优化排版和可读性。",
+    "riskCount": 2,
+    "summary": "本次 PR 主要更新了示例文档并调整了部分代码结构。",
+    "overallConclusion": "整体风险较低，但建议补充边界场景验证。",
     "errorMessage": null
   }
 }
 ```
 
-### 2. 查询任务详情
+### Get Review Task Detail
 
 ```http
 GET /api/reviews/{id}
 ```
 
-该接口会返回：
+This endpoint returns:
 
-- 任务状态
-- PR 基本信息
-- Review 结果
-- 风险项列表
+- task status
+- PR metadata
+- review result
+- risk items
+- task timestamps
 
-### 3. 查询任务列表
+### List Review Tasks
 
 ```http
 GET /api/reviews
 ```
 
-### 4. GitHub PR 临时验收接口
+### Temporary GitHub Fetch Endpoint
 
-```text
+```http
 GET /api/github/pr?repoUrl=xxx&prNumber=1
 ```
 
-## 数据库验证
+### Validation Error Example
 
-启动后可检查核心表是否已创建：
+```http
+POST /api/reviews
+Content-Type: application/json
 
-```sql
-SHOW TABLES;
+{
+  "repoUrl": "https://gitlab.com/example/repo",
+  "prNumber": 0
+}
 ```
 
-预期表：
+Example error response:
 
-```text
-review_task
-pull_request_info
-review_result
-risk_item
-model_call_log
+```json
+{
+  "code": 400,
+  "message": "prNumber must be a positive number.; repoUrl must be a valid GitHub repository URL.",
+  "data": null
+}
 ```
 
-重点验证项：
+## Database
 
-- `review_task.status`
-- `review_task.risk_count`
+Core tables:
+
+- `review_task`
 - `pull_request_info`
 - `review_result`
 - `risk_item`
 - `model_call_log`
 
-## 测试
+The backend automatically creates or updates tables based on JPA configuration when the application starts.
 
-后端全量测试：
+## Testing
+
+### Backend Tests
 
 ```bash
 cd backend
 mvn test
 ```
 
-重点接口测试：
+### Frontend Build Check
 
 ```bash
-cd backend
-mvn test -Dtest=ReviewControllerTest
+cd frontend
+npm run build
 ```
 
-## 当前边界
+### Manual Verification Checklist
 
-当前尚未完成的模块：
+- backend can start successfully
+- frontend can start successfully
+- `GET /api/health` returns `UP`
+- invalid `repoUrl` or `prNumber` returns a clear validation error
+- GitHub API errors are returned in unified response format
+- frontend can display loading states, review results, and backend error messages
 
-- 第十一模块：参数校验与统一异常处理完善
-- 第十二模块：最终文档与演示材料
+## Common Issues
 
-当前实际情况：
+### Backend starts but AI review fails
 
-- 前端端到端分析页面：已完成
-- 后端 AI Review 能力：已完成
-- 统一异常返回和错误语义优化：待第十一模块继续完善
-- 最终演示材料、截图和完整交付文档：待第十二模块完善
+Check whether these variables are configured:
 
-## 安全说明
+- `MODEL_API_BASE_URL`
+- `MODEL_API_KEY`
+- `MODEL_API_MODEL`
 
-不要提交以下文件或敏感信息：
+### GitHub requests are rate limited
+
+Provide a `GITHUB_TOKEN` to reduce unauthenticated rate-limit problems.
+
+### Frontend cannot reach the backend
+
+Make sure:
+
+- backend is running on `http://localhost:8080`
+- frontend is running on `http://localhost:5173`
+- Vite proxy configuration is unchanged
+
+### Java version is too low
+
+If your shell is not using JDK 21+, switch `JAVA_HOME` before running Maven.
+
+## Documentation
+
+Additional project documents are available in the `docs/` directory:
+
+- `docs/需求分析.md`
+- `docs/技术选型.md`
+- `docs/架构设计.md`
+- `docs/数据库设计.md`
+- `docs/模块拆分与开发计划.md`
+
+## Security Notes
+
+Never commit:
 
 - `.env`
 - `application-local.yml`
-- GitHub Token
-- 模型 API Key
-- 数据库密码
-- IDE 本地私有配置
+- GitHub tokens
+- model provider API keys
+- passwords
+- local IDE secret files
 
-敏感信息请通过环境变量或本地忽略配置文件提供。当前 `.gitignore` 已覆盖常见本地配置、日志、构建产物和密钥文件。
-
-## 参考文档
-
-开发前请优先阅读 `docs/` 目录下的文档：
-
-- [需求分析.md](/C:/pr-review-agent/docs/需求分析.md)
-- [技术选型.md](/C:/pr-review-agent/docs/技术选型.md)
-- [架构设计.md](/C:/pr-review-agent/docs/架构设计.md)
-- [数据库设计.md](/C:/pr-review-agent/docs/数据库设计.md)
-- [模块拆分与开发计划.md](/C:/pr-review-agent/docs/模块拆分与开发计划.md)
-
-其中 `docs/模块拆分与开发计划.md` 是主开发路线图。
+Use environment variables or ignored local configuration files for all secrets.
