@@ -7,6 +7,8 @@ coverage/
 frontend/coverage/
 .vite/
 frontend/.vite/
+.parcel-cache/
+frontend/.parcel-cache/
 
 # Backend
 target/
@@ -22,20 +24,31 @@ backend/target/
 .env.github
 .env.github.*
 application-local.yml
+application-local.yaml
 **/application-local.yml
+**/application-local.yaml
 application-local.properties
 **/application-local.properties
 backend/src/main/resources/application-local.yml
+backend/src/main/resources/application-local.yaml
 backend/src/main/resources/application-local.properties
+backend/src/main/resources/application-local-*.yml
+backend/src/main/resources/application-local-*.yaml
+backend/src/main/resources/application-local-*.properties
 backend/src/main/resources/*.local.yml
+backend/src/main/resources/*.local.yaml
 backend/src/main/resources/*.local.properties
 backend/src/main/resources/github-local.yml
+backend/src/main/resources/github-local.yaml
 backend/src/main/resources/github-local.properties
 backend/src/main/resources/model-local.yml
+backend/src/main/resources/model-local.yaml
 backend/src/main/resources/model-local.properties
 backend/src/main/resources/model-*.secret.yml
+backend/src/main/resources/model-*.secret.yaml
 backend/src/main/resources/model-*.secret.properties
 backend/src/test/resources/*.local.yml
+backend/src/test/resources/*.local.yaml
 backend/src/test/resources/*.local.properties
 
 # IDE and OS files
