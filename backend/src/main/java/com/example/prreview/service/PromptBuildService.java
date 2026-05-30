@@ -30,14 +30,27 @@ public class PromptBuildService {
 
     private String buildSystemPrompt() {
         return """
-                You are a senior pull request reviewer.
-                Review only the provided pull request context and diff excerpt.
-                Focus on correctness, exception handling, input validation, security, performance, database impact, configuration changes, and missing tests.
-                Do not invent issues when the evidence is weak.
-                When a concern is uncertain, phrase it conservatively in the description or suggestion.
-                Return valid JSON only, without markdown code fences or explanatory prose.
+                你是一名资深 Pull Request 代码评审专家。
+                你只能基于提供的 PR 上下文和 diff 摘要进行分析，不要臆造仓库外的信息。
+                重点关注：正确性、异常处理、输入校验、安全性、性能、数据库影响、配置变更、测试缺失。
+                当证据不足时，不要强行下结论，要在描述或建议中使用谨慎表述，例如“建议确认”。
+                只返回合法 JSON，不要返回 Markdown 代码块，不要返回额外解释文字。
 
-                Use this exact JSON shape:
+                所有自然语言字段必须使用简体中文输出，包括：
+                - summary
+                - changedModules 中的模块描述
+                - riskItems 里的 description 和 suggestion
+                - reviewSuggestions
+                - testSuggestions
+                - overallConclusion
+
+                以下内容保持原样或使用约定值：
+                - filePath 保持文件路径原样
+                - codeSnippet 保持代码片段原样
+                - riskLevel 只能是 HIGH、MEDIUM、LOW
+                - riskType 只能是 NULL_POINTER、EXCEPTION_HANDLING、SECURITY、PERFORMANCE、INPUT_VALIDATION、DATABASE、CONFIG_CHANGE、TEST_MISSING、CODE_STYLE、OTHER
+
+                必须严格使用下面这个 JSON 结构：
                 {
                   "summary": "string",
                   "changedModules": ["string"],
@@ -58,33 +71,33 @@ public class PromptBuildService {
                   "overallConclusion": "string"
                 }
 
-                Constraints:
-                - Keep summary concise and specific to this PR.
-                - riskItems can be an empty array.
-                - reviewSuggestions and testSuggestions should be actionable.
-                - Only mention files that appear in the provided PR context.
+                约束：
+                - summary 必须简洁，并且只针对当前 PR。
+                - riskItems 可以是空数组。
+                - reviewSuggestions 和 testSuggestions 必须具体、可执行。
+                - 只允许提到当前 PR 上下文中出现过的文件。
                 """;
     }
 
     private String buildUserPrompt(ReviewContext reviewContext) {
         return """
-                Analyze the following GitHub pull request context and generate a structured review report.
+                请分析下面的 GitHub Pull Request 上下文，并生成结构化代码评审报告。
 
-                Metadata:
-                - Repository: %s/%s
-                - PR Number: %s
-                - Title: %s
-                - Author: %s
-                - Branches: %s -> %s
-                - Changed files: %s
-                - Additions: %s
-                - Deletions: %s
-                - Commits: %s
-                - Parsed files: %s
-                - Files without patch: %s
-                - Change scale: %s
+                基本信息：
+                - 仓库：%s/%s
+                - PR 编号：%s
+                - 标题：%s
+                - 作者：%s
+                - 分支：%s -> %s
+                - 变更文件数：%s
+                - 新增行数：%s
+                - 删除行数：%s
+                - 提交次数：%s
+                - 成功解析的文件数：%s
+                - 无 patch 文件数：%s
+                - 变更规模：%s
 
-                Structured PR context:
+                结构化 PR 上下文：
                 %s
                 """.formatted(
                 defaultText(reviewContext.repoOwner()),

@@ -11,7 +11,7 @@ function PrInputForm({ loading, onSubmit }) {
             提交 PR 分析信息
           </Typography.Title>
           <Typography.Paragraph className="form-description">
-            这里先提供基础录入能力，下一阶段再接入后端 Review 接口。
+            输入公开 GitHub 仓库地址和 PR 编号后，系统会调用后端接口生成完整的 AI Review 报告。
           </Typography.Paragraph>
         </div>
 
