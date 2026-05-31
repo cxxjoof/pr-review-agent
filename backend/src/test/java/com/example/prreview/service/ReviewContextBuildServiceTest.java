@@ -5,6 +5,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import com.example.prreview.dto.diff.ReviewContext;
 import com.example.prreview.dto.github.GitHubChangedFileDTO;
 import com.example.prreview.dto.github.GitHubPullRequestDTO;
+import com.example.prreview.enums.PrType;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
@@ -64,6 +65,8 @@ class ReviewContextBuildServiceTest {
         ReviewContext context = reviewContextBuildService.buildReviewContext(pullRequest);
 
         assertThat(context.taskId()).isEqualTo(1L);
+        assertThat(context.prType()).isEqualTo(PrType.CODE);
+        assertThat(context.prUrl()).isEqualTo("https://github.com/openai/pr-review-agent/pull/8");
         assertThat(context.parsedFileCount()).isEqualTo(2);
         assertThat(context.patchlessFileCount()).isEqualTo(1);
         assertThat(context.addedLineCount()).isEqualTo(4);
@@ -73,6 +76,7 @@ class ReviewContextBuildServiceTest {
         assertThat(context.changedModules()).containsExactly("backend/src", "docs/架构设计.md");
         assertThat(context.files()).hasSize(2);
         assertThat(context.aiContext()).contains("PR Overview");
+        assertThat(context.aiContext()).contains("PR Type: CODE");
         assertThat(context.aiContext()).contains("Change: ADDED, Category: BACKEND");
         assertThat(context.aiContext()).contains("Patch content unavailable from GitHub API");
         assertThat(context.aiContext()).doesNotContain("@@ -0,0 +1,4 @@");

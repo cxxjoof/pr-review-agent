@@ -15,6 +15,7 @@ import com.example.prreview.dto.model.ChatCompletionResponse;
 import com.example.prreview.dto.model.ChatMessage;
 import com.example.prreview.dto.review.AiReviewReportDTO;
 import com.example.prreview.entity.ReviewTask;
+import com.example.prreview.enums.PrType;
 import com.example.prreview.enums.TaskStatus;
 import com.example.prreview.repository.ReviewTaskRepository;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,7 +24,6 @@ import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -47,6 +47,9 @@ class AiReviewServiceTest {
     @Mock
     private RiskItemService riskItemService;
 
+    @Mock
+    private FindingPostProcessor findingPostProcessor;
+
     @InjectMocks
     private AiReviewService aiReviewService;
 
@@ -58,6 +61,7 @@ class AiReviewServiceTest {
                 modelClient,
                 reviewReportService,
                 riskItemService,
+                findingPostProcessor,
                 new ObjectMapper()
         );
     }
@@ -76,14 +80,16 @@ class AiReviewServiceTest {
                         {
                           "summary": "Adds AI review orchestration.",
                           "changedModules": ["backend/service", "backend/dto"],
-                          "riskItems": [
+                          "findings": [
                             {
                               "filePath": "backend/src/main/java/com/example/prreview/service/AiReviewService.java",
                               "lineNumber": 48,
-                              "riskLevel": "MEDIUM",
-                              "riskType": "TEST_MISSING",
-                              "description": "The new orchestration path should be covered by tests.",
-                              "suggestion": "Add service tests for success and failure flows.",
+                              "findingLevel": "MEDIUM",
+                              "findingKind": "RISK",
+                              "findingCategory": "TEST_GAP",
+                              "title": "补充测试覆盖",
+                              "description": "新的编排路径建议补充测试覆盖。",
+                              "suggestion": "为成功和失败流程增加服务层测试。",
                               "confidence": 0.88
                             }
                           ],
@@ -92,13 +98,16 @@ class AiReviewServiceTest {
                           "overallConclusion": "The implementation is sound with minor follow-up testing work."
                         }
                         """));
+        when(findingPostProcessor.postProcess(eq(reviewContext), any(AiReviewReportDTO.class)))
+                .thenAnswer(invocation -> invocation.getArgument(1));
 
         AiReviewReportDTO report = aiReviewService.analyze(reviewContext);
 
         assertThat(report.getSummary()).isEqualTo("Adds AI review orchestration.");
-        assertThat(report.getRiskItems()).hasSize(1);
+        assertThat(report.getFindings()).hasSize(1);
         assertThat(task.getStatus()).isEqualTo(TaskStatus.SUCCESS);
         assertThat(task.getRiskCount()).isEqualTo(1);
+        assertThat(task.getPrType()).isEqualTo(PrType.CODE);
         verify(reviewReportService).saveOrUpdate(eq(task), any(AiReviewReportDTO.class), any(String.class));
         verify(riskItemService).replaceRiskItems(eq(task), any(List.class));
     }
@@ -114,10 +123,12 @@ class AiReviewServiceTest {
         when(promptBuildService.buildReviewRequest(reviewContext)).thenReturn(request);
         when(modelClient.chatCompletion(task, AiReviewService.AI_REVIEW_CALL_TYPE, request))
                 .thenReturn(buildResponse("not valid json"));
+        when(findingPostProcessor.postProcess(eq(reviewContext), any(AiReviewReportDTO.class)))
+                .thenAnswer(invocation -> invocation.getArgument(1));
 
         AiReviewReportDTO report = aiReviewService.analyze(reviewContext);
 
-        assertThat(report.getRiskItems()).isEmpty();
+        assertThat(report.getFindings()).isEmpty();
         assertThat(report.getChangedModules()).containsExactly("backend/service");
         assertThat(report.getOverallConclusion()).contains("AI");
         assertThat(report.getReviewSuggestions()).isNotEmpty();
@@ -167,6 +178,8 @@ class AiReviewServiceTest {
                 "openai",
                 "pr-review-agent",
                 8,
+                "https://github.com/openai/pr-review-agent/pull/8",
+                PrType.CODE,
                 "feat: add ai review analysis",
                 "Generate AI review reports",
                 "octocat",
