@@ -19,14 +19,12 @@ function unwrapResponse(response) {
   return payload.data;
 }
 
-async function resolveReviewPostNotFoundError(error) {
+async function resolveReviewPostNotFoundError() {
   try {
     await reviewApi.get("/reviews");
     return new Error("GitHub 仓库地址或 PR 编号未找到，请确认仓库公开可访问，并且该 PR 真实存在。");
   } catch {
-    return new Error(
-      "后端 Review 接口不存在。请确认后端已经重启，并且当前运行的是包含 /api/reviews 接口的最新版本。"
-    );
+    return new Error("后端 Review 接口不存在。请确认后端已重启，并且当前运行的是包含 /api/reviews 接口的最新版本。");
   }
 }
 
@@ -37,7 +35,7 @@ async function buildRequestError(error, fallbackMessage) {
   const statusText = error?.response?.statusText;
 
   if (statusCode === 404 && requestUrl === "/reviews" && error?.config?.method === "post") {
-    return resolveReviewPostNotFoundError(error);
+    return resolveReviewPostNotFoundError();
   }
 
   if (!error?.response) {
@@ -63,5 +61,17 @@ export async function getReviewResult(taskId) {
     return unwrapResponse(response);
   } catch (error) {
     throw await buildRequestError(error, "获取 Review 结果失败，请稍后重试。");
+  }
+}
+
+export async function submitFindingFeedback(taskId, findingId, payload) {
+  try {
+    const response = await reviewApi.post(
+      `/reviews/${taskId}/findings/${findingId}/feedback`,
+      payload
+    );
+    return unwrapResponse(response);
+  } catch (error) {
+    throw await buildRequestError(error, "提交反馈失败，请稍后重试。");
   }
 }

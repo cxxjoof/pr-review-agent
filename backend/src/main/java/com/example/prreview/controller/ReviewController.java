@@ -1,9 +1,12 @@
 package com.example.prreview.controller;
 
+import com.example.prreview.dto.request.CreateReviewFeedbackRequest;
 import com.example.prreview.dto.request.CreateReviewRequest;
 import com.example.prreview.dto.response.ApiResponse;
+import com.example.prreview.dto.response.ReviewFeedbackResponse;
 import com.example.prreview.dto.response.ReviewResultResponse;
 import com.example.prreview.dto.response.ReviewTaskResponse;
+import com.example.prreview.service.ReviewFeedbackService;
 import com.example.prreview.service.ReviewTaskService;
 import jakarta.validation.Valid;
 import java.util.List;
@@ -19,9 +22,11 @@ import org.springframework.web.bind.annotation.RestController;
 public class ReviewController {
 
     private final ReviewTaskService reviewTaskService;
+    private final ReviewFeedbackService reviewFeedbackService;
 
-    public ReviewController(ReviewTaskService reviewTaskService) {
+    public ReviewController(ReviewTaskService reviewTaskService, ReviewFeedbackService reviewFeedbackService) {
         this.reviewTaskService = reviewTaskService;
+        this.reviewFeedbackService = reviewFeedbackService;
     }
 
     @PostMapping
@@ -37,5 +42,14 @@ public class ReviewController {
     @GetMapping
     public ApiResponse<List<ReviewTaskResponse>> listReviewTasks() {
         return ApiResponse.success(reviewTaskService.listTasks());
+    }
+
+    @PostMapping("/{taskId}/findings/{findingId}/feedback")
+    public ApiResponse<ReviewFeedbackResponse> createFindingFeedback(
+            @PathVariable Long taskId,
+            @PathVariable Long findingId,
+            @Valid @RequestBody CreateReviewFeedbackRequest request
+    ) {
+        return ApiResponse.success(reviewFeedbackService.createFeedback(taskId, findingId, request));
     }
 }

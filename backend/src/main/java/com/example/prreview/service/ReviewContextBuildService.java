@@ -4,9 +4,13 @@ import com.example.prreview.dto.diff.ChangedFileContext;
 import com.example.prreview.dto.diff.DiffLineDTO;
 import com.example.prreview.dto.diff.ReviewContext;
 import com.example.prreview.dto.github.GitHubPullRequestDTO;
+import com.example.prreview.enums.PrType;
 import java.util.Comparator;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Objects;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -51,12 +55,16 @@ public class ReviewContextBuildService {
                 .distinct()
                 .toList();
 
+        PrType prType = detectPrType(fileContexts);
+
         return new ReviewContext(
                 pullRequest.taskId(),
                 pullRequest.repoUrl(),
                 pullRequest.repoOwner(),
                 pullRequest.repoName(),
                 pullRequest.prNumber(),
+                pullRequest.prUrl(),
+                prType,
                 pullRequest.title(),
                 pullRequest.description(),
                 pullRequest.author(),
@@ -74,7 +82,7 @@ public class ReviewContextBuildService {
                 contextLineCount,
                 determineChangeScale(fileContexts.size(), defaultZero(pullRequest.additions()) + defaultZero(pullRequest.deletions())),
                 fileContexts,
-                buildAiContext(pullRequest, fileContexts, changedModules, patchlessFileCount)
+                buildAiContext(pullRequest, fileContexts, changedModules, patchlessFileCount, prType)
         );
     }
 
@@ -82,7 +90,8 @@ public class ReviewContextBuildService {
             GitHubPullRequestDTO pullRequest,
             List<ChangedFileContext> fileContexts,
             List<String> changedModules,
-            int patchlessFileCount
+            int patchlessFileCount,
+            PrType prType
     ) {
         StringBuilder builder = new StringBuilder();
         builder.append("PR Overview").append(System.lineSeparator());
@@ -92,6 +101,7 @@ public class ReviewContextBuildService {
                 .append(defaultString(pullRequest.repoName()))
                 .append(System.lineSeparator());
         builder.append("PR Number: ").append(defaultZero(pullRequest.prNumber())).append(System.lineSeparator());
+        builder.append("PR Type: ").append(prType == null ? "UNKNOWN" : prType.name()).append(System.lineSeparator());
         builder.append("Author: ").append(defaultString(pullRequest.author())).append(System.lineSeparator());
         builder.append("Branches: ").append(defaultString(pullRequest.sourceBranch()))
                 .append(" -> ")
@@ -151,6 +161,63 @@ public class ReviewContextBuildService {
         }
 
         return builder.toString().trim();
+    }
+
+    PrType detectPrType(List<ChangedFileContext> fileContexts) {
+        if (fileContexts == null || fileContexts.isEmpty()) {
+            return PrType.CODE;
+        }
+
+        Set<PrType> detectedTypes = fileContexts.stream()
+                .map(this::resolveTypeFromFile)
+                .collect(java.util.stream.Collectors.toCollection(LinkedHashSet::new));
+
+        if (detectedTypes.size() == 1) {
+            return detectedTypes.iterator().next();
+        }
+
+        detectedTypes.remove(PrType.DOCUMENTATION);
+        if (detectedTypes.size() == 1) {
+            return detectedTypes.iterator().next();
+        }
+
+        if (detectedTypes.contains(PrType.CODE) && detectedTypes.size() > 1) {
+            return PrType.MIXED;
+        }
+
+        return PrType.MIXED;
+    }
+
+    private PrType resolveTypeFromFile(ChangedFileContext file) {
+        String filePath = file == null ? "" : defaultString(file.filePath()).toLowerCase(Locale.ROOT);
+        String category = file == null ? "" : defaultString(file.fileCategory()).toUpperCase(Locale.ROOT);
+
+        if (filePath.contains(".github/workflows/")) {
+            return PrType.CICD;
+        }
+        if (isDependencyFile(filePath)) {
+            return PrType.DEPENDENCY;
+        }
+        if ("DOCUMENTATION".equals(category)) {
+            return PrType.DOCUMENTATION;
+        }
+        if ("TEST".equals(category)) {
+            return PrType.TEST;
+        }
+        if ("CONFIG".equals(category)) {
+            return PrType.CONFIG;
+        }
+        return PrType.CODE;
+    }
+
+    private boolean isDependencyFile(String filePath) {
+        return filePath.endsWith("pom.xml")
+                || filePath.endsWith("package.json")
+                || filePath.endsWith("package-lock.json")
+                || filePath.endsWith("pnpm-lock.yaml")
+                || filePath.endsWith("yarn.lock")
+                || filePath.endsWith("build.gradle")
+                || filePath.endsWith("settings.gradle");
     }
 
     private String extractModuleName(String filePath) {

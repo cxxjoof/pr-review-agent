@@ -1,5 +1,6 @@
 package com.example.prreview.dto.diff;
 
+import com.example.prreview.enums.PrType;
 import java.util.List;
 
 public record ReviewContext(
@@ -8,6 +9,8 @@ public record ReviewContext(
         String repoOwner,
         String repoName,
         Integer prNumber,
+        String prUrl,
+        PrType prType,
         String title,
         String description,
         String author,

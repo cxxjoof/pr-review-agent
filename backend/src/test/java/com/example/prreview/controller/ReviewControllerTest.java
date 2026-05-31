@@ -19,9 +19,11 @@ import com.example.prreview.entity.PullRequestInfo;
 import com.example.prreview.entity.ReviewResult;
 import com.example.prreview.entity.ReviewTask;
 import com.example.prreview.entity.RiskItem;
+import com.example.prreview.enums.PrType;
 import com.example.prreview.enums.TaskStatus;
 import com.example.prreview.repository.ModelCallLogRepository;
 import com.example.prreview.repository.PullRequestInfoRepository;
+import com.example.prreview.repository.ReviewFeedbackRepository;
 import com.example.prreview.repository.ReviewResultRepository;
 import com.example.prreview.repository.ReviewTaskRepository;
 import com.example.prreview.repository.RiskItemRepository;
@@ -58,6 +60,9 @@ class ReviewControllerTest {
     @Autowired
     private ModelCallLogRepository modelCallLogRepository;
 
+    @Autowired
+    private ReviewFeedbackRepository reviewFeedbackRepository;
+
     @MockBean
     private GitHubClient gitHubClient;
 
@@ -66,6 +71,7 @@ class ReviewControllerTest {
 
     @BeforeEach
     void setUp() {
+        reviewFeedbackRepository.deleteAll();
         modelCallLogRepository.deleteAll();
         riskItemRepository.deleteAll();
         reviewResultRepository.deleteAll();
@@ -77,25 +83,29 @@ class ReviewControllerTest {
     void shouldCreateReviewTaskAndReturnUnifiedResponse() throws Exception {
         mockReviewFlow(
                 11,
-                "feat: add review task api",
+                "docs: improve readme command formatting",
                 """
                 {
-                  "summary": "This PR adds the review task API.",
-                  "changedModules": ["backend/controller", "backend/service"],
-                  "riskItems": [
+                  "summary": "本次 PR 主要优化 README 中的命令展示格式。",
+                  "changedModules": ["README.md"],
+                  "findings": [
                     {
-                      "filePath": "backend/src/main/java/com/example/prreview/service/ReviewTaskService.java",
+                      "filePath": "README.md",
                       "lineNumber": 42,
-                      "riskLevel": "MEDIUM",
-                      "riskType": "EXCEPTION_HANDLING",
-                      "description": "Exception flow should be verified.",
-                      "suggestion": "Add explicit error handling for external calls.",
+                      "findingLevel": "MEDIUM",
+                      "findingKind": "RISK",
+                      "findingCategory": "DOCUMENTATION_FORMAT",
+                      "title": "命令与说明缺少空行",
+                      "description": "命令与后续说明文本贴在一起，可能影响阅读体验。",
+                      "suggestion": "建议使用 Markdown 代码块或空行分隔命令与说明。",
+                      "beforeExample": "mkdir demoCreates a directory",
+                      "afterExample": "mkdir demo\\n\\nCreates a directory",
                       "confidence": 0.88
                     }
                   ],
-                  "reviewSuggestions": ["Verify failure states."],
-                  "testSuggestions": ["Add endpoint integration tests."],
-                  "overallConclusion": "The change is reasonable with a moderate integration risk."
+                  "reviewSuggestions": ["检查 README 在 GitHub 上的渲染效果。"],
+                  "testSuggestions": ["本地复制 README 命令验证可执行性。"],
+                  "overallConclusion": "本次 PR 为文档改进，建议优先修正文档可读性问题。"
                 }
                 """
         );
@@ -113,29 +123,30 @@ class ReviewControllerTest {
                 .andExpect(jsonPath("$.message").value("success"))
                 .andExpect(jsonPath("$.data.taskId").isNumber())
                 .andExpect(jsonPath("$.data.status").value("SUCCESS"))
-                .andExpect(jsonPath("$.data.riskCount").value(1))
-                .andExpect(jsonPath("$.data.summary").value("This PR adds the review task API."))
-                .andExpect(jsonPath("$.data.overallConclusion")
-                        .value("The change is reasonable with a moderate integration risk."));
+                .andExpect(jsonPath("$.data.prType").value("DOCUMENTATION"))
+                .andExpect(jsonPath("$.data.resultViewType").value("DOCUMENTATION_FINDINGS"))
+                .andExpect(jsonPath("$.data.findingCount").value(1))
+                .andExpect(jsonPath("$.data.summary").value("本次 PR 主要优化 README 中的命令展示格式。"));
 
         List<ReviewTask> tasks = reviewTaskRepository.findAll();
         assertThat(tasks).hasSize(1);
         assertThat(tasks.get(0).getStatus()).isEqualTo(TaskStatus.SUCCESS);
         assertThat(tasks.get(0).getRiskCount()).isEqualTo(1);
+        assertThat(tasks.get(0).getPrType()).isEqualTo(PrType.DOCUMENTATION);
 
         PullRequestInfo pullRequestInfo = pullRequestInfoRepository.findByTaskId(tasks.get(0).getId()).orElseThrow();
-        assertThat(pullRequestInfo.getTitle()).isEqualTo("feat: add review task api");
+        assertThat(pullRequestInfo.getTitle()).isEqualTo("docs: improve readme command formatting");
 
         ReviewResult reviewResult = reviewResultRepository.findByTaskId(tasks.get(0).getId()).orElseThrow();
-        assertThat(reviewResult.getSummary()).isEqualTo("This PR adds the review task API.");
+        assertThat(reviewResult.getSummary()).isEqualTo("本次 PR 主要优化 README 中的命令展示格式。");
 
-        List<RiskItem> riskItems = riskItemRepository.findByTaskId(tasks.get(0).getId());
-        assertThat(riskItems).hasSize(1);
-        assertThat(riskItems.get(0).getRiskLevel().name()).isEqualTo("MEDIUM");
+        List<RiskItem> findings = riskItemRepository.findByTaskId(tasks.get(0).getId());
+        assertThat(findings).hasSize(1);
+        assertThat(findings.get(0).getFindingLevel().name()).isEqualTo("LOW");
     }
 
     @Test
-    void shouldReturnReviewTaskDetail() throws Exception {
+    void shouldReturnReviewTaskDetailAndFindingPayload() throws Exception {
         mockReviewFlow(
                 12,
                 "feat: expose review detail api",
@@ -143,7 +154,19 @@ class ReviewControllerTest {
                 {
                   "summary": "This PR exposes review detail APIs.",
                   "changedModules": ["backend/controller"],
-                  "riskItems": [],
+                  "findings": [
+                    {
+                      "filePath": "backend/src/main/java/com/example/prreview/controller/ReviewController.java",
+                      "lineNumber": 21,
+                      "findingLevel": "MEDIUM",
+                      "findingKind": "RISK",
+                      "findingCategory": "EXCEPTION_HANDLING",
+                      "title": "建议补充异常路径验证",
+                      "description": "接口新增后建议确认异常路径是否返回统一错误结构。",
+                      "suggestion": "为外部依赖失败场景补充控制器集成测试。",
+                      "confidence": 0.92
+                    }
+                  ],
                   "reviewSuggestions": ["Confirm response fields stay backward compatible."],
                   "testSuggestions": ["Add detail endpoint coverage."],
                   "overallConclusion": "Low risk change."
@@ -168,6 +191,8 @@ class ReviewControllerTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data.taskId").value(task.getId()))
                 .andExpect(jsonPath("$.data.status").value("SUCCESS"))
+                .andExpect(jsonPath("$.data.prType").value("CODE"))
+                .andExpect(jsonPath("$.data.resultViewType").value("CODE_RISKS"))
                 .andExpect(jsonPath("$.data.pullRequest.repoOwner").value("openai"))
                 .andExpect(jsonPath("$.data.pullRequest.repoName").value("pr-review-agent"))
                 .andExpect(jsonPath("$.data.pullRequest.title").value("feat: expose review detail api"))
@@ -175,7 +200,71 @@ class ReviewControllerTest {
                 .andExpect(jsonPath("$.data.reviewResult.changedModules[0]").value("backend/controller"))
                 .andExpect(jsonPath("$.data.reviewResult.reviewSuggestions[0]")
                         .value("Confirm response fields stay backward compatible."))
-                .andExpect(jsonPath("$.data.riskItems").isArray());
+                .andExpect(jsonPath("$.data.findings[0].findingLevel").value("MEDIUM"))
+                .andExpect(jsonPath("$.data.findings[0].findingCategory").value("EXCEPTION_HANDLING"))
+                .andExpect(jsonPath("$.data.findings[0].feedbackStatus").doesNotExist());
+    }
+
+    @Test
+    void shouldCreateFeedbackForFinding() throws Exception {
+        mockReviewFlow(
+                13,
+                "feat: add feedback endpoint",
+                """
+                {
+                  "summary": "This PR adds feedback flow.",
+                  "changedModules": ["backend/controller"],
+                  "findings": [
+                    {
+                      "filePath": "backend/src/main/java/com/example/prreview/controller/ReviewController.java",
+                      "lineNumber": 34,
+                      "findingLevel": "LOW",
+                      "findingKind": "ADVISORY",
+                      "findingCategory": "TEST_GAP",
+                      "title": "建议补充反馈接口测试",
+                      "description": "建议确认反馈接口在错误输入下的响应行为。",
+                      "suggestion": "增加反馈接口参数校验测试。",
+                      "confidence": 0.72
+                    }
+                  ],
+                  "reviewSuggestions": ["Review the new feedback endpoint carefully."],
+                  "testSuggestions": ["Add feedback endpoint integration tests."],
+                  "overallConclusion": "Follow-up validation is recommended."
+                }
+                """
+        );
+
+        mockMvc.perform(post("/api/reviews")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "repoUrl": "https://github.com/openai/pr-review-agent",
+                                  "prNumber": 13
+                                }
+                                """))
+                .andExpect(status().isOk());
+
+        ReviewTask task = reviewTaskRepository.findAll().getFirst();
+        RiskItem finding = riskItemRepository.findByTaskId(task.getId()).getFirst();
+
+        mockMvc.perform(post("/api/reviews/{taskId}/findings/{findingId}/feedback", task.getId(), finding.getId())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {
+                                  "feedbackType": "USEFUL",
+                                  "comment": "This helped."
+                                }
+                                """))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.code").value(200))
+                .andExpect(jsonPath("$.data.taskId").value(task.getId()))
+                .andExpect(jsonPath("$.data.findingId").value(finding.getId()))
+                .andExpect(jsonPath("$.data.feedbackType").value("USEFUL"))
+                .andExpect(jsonPath("$.data.comment").value("This helped."));
+
+        mockMvc.perform(get("/api/reviews/{id}", task.getId()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.findings[0].feedbackStatus").value("USEFUL"));
     }
 
     @Test
@@ -185,6 +274,7 @@ class ReviewControllerTest {
                 "openai",
                 "pr-review-agent",
                 1,
+                PrType.CODE,
                 TaskStatus.SUCCESS,
                 2,
                 null
@@ -196,6 +286,7 @@ class ReviewControllerTest {
                 "openai",
                 "pr-review-agent",
                 2,
+                PrType.DOCUMENTATION,
                 TaskStatus.FAILED,
                 0,
                 "Model call failed"
@@ -206,6 +297,7 @@ class ReviewControllerTest {
                 .andExpect(jsonPath("$.code").value(200))
                 .andExpect(jsonPath("$.data[0].taskId").value(newerTask.getId()))
                 .andExpect(jsonPath("$.data[0].status").value("FAILED"))
+                .andExpect(jsonPath("$.data[0].prType").value("DOCUMENTATION"))
                 .andExpect(jsonPath("$.data[0].errorMessage").value("Model call failed"))
                 .andExpect(jsonPath("$.data[1].taskId").value(olderTask.getId()))
                 .andExpect(jsonPath("$.data[1].summary").value("Older review summary"))
@@ -224,8 +316,8 @@ class ReviewControllerTest {
                                 """))
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.code").value(400))
-                .andExpect(jsonPath("$.message")
-                        .value("prNumber must be a positive number.; repoUrl must be a valid GitHub repository URL."));
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("repoUrl must be a valid GitHub repository URL.")))
+                .andExpect(jsonPath("$.message").value(org.hamcrest.Matchers.containsString("prNumber must be a positive number.")));
     }
 
     @Test
@@ -238,6 +330,10 @@ class ReviewControllerTest {
 
     private void mockReviewFlow(int prNumber, String title, String aiResponseJson) {
         GitHubClient.GitHubRepository repository = new GitHubClient.GitHubRepository("openai", "pr-review-agent");
+        String fileName = title.startsWith("docs:") ? "README.md" : "backend/src/main/java/com/example/prreview/controller/ReviewController.java";
+        String patch = title.startsWith("docs:")
+                ? "@@ -40,1 +40,3 @@\n+mkdir demoCreates a directory\n+\n+More explanation"
+                : "@@ -0,0 +1,3 @@\n+@RestController\n+@RequestMapping(\"/api/reviews\")\n+public class ReviewController {}";
         GitHubPullRequestDTO pullRequest = new GitHubPullRequestDTO(
                 null,
                 1000L + prNumber,
@@ -257,12 +353,12 @@ class ReviewControllerTest {
                 1,
                 "https://github.com/openai/pr-review-agent/pull/" + prNumber,
                 List.of(new GitHubChangedFileDTO(
-                        "backend/src/main/java/com/example/prreview/controller/ReviewController.java",
-                        "added",
+                        fileName,
+                        "modified",
                         18,
-                        0,
-                        18,
-                        "@@ -0,0 +1,3 @@\n+@RestController\n+@RequestMapping(\"/api/reviews\")\n+public class ReviewController {}",
+                        3,
+                        21,
+                        patch,
                         null
                 ))
         );
@@ -287,8 +383,9 @@ class ReviewControllerTest {
             String repoOwner,
             String repoName,
             Integer prNumber,
+            PrType prType,
             TaskStatus status,
-            Integer riskCount,
+            Integer findingCount,
             String errorMessage
     ) {
         ReviewTask task = new ReviewTask();
@@ -296,8 +393,9 @@ class ReviewControllerTest {
         task.setRepoOwner(repoOwner);
         task.setRepoName(repoName);
         task.setPrNumber(prNumber);
+        task.setPrType(prType);
         task.setStatus(status);
-        task.setRiskCount(riskCount);
+        task.setRiskCount(findingCount);
         task.setErrorMessage(errorMessage);
         task.setCreatedAt(LocalDateTime.of(2026, 5, 29, 10, prNumber));
         return reviewTaskRepository.save(task);

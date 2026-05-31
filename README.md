@@ -2,16 +2,16 @@
 
 AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应用。
 
-用户输入 GitHub 仓库地址和 PR 编号后，系统会自动获取 PR 基本信息与改动文件，解析 diff 构建审查上下文，调用 OpenAI 兼容模型生成结构化代码审查结果，并输出以下内容：
+用户输入 GitHub 仓库地址和 PR 编号后，系统会自动获取 PR 基本信息与变更文件，解析 diff 构建审查上下文，调用 OpenAI 兼容模型生成结构化 Review 结果，并输出以下内容：
 
 - PR 变更总结
 - 变更模块说明
-- 风险项列表
+- 结构化发现项列表
 - Review 建议
 - 测试建议
 - 总体结论
 
-项目包含 Spring Boot 后端、React 前端、任务与结果持久化，以及完整的参数校验和统一异常处理能力，能够作为一个可运行、可演示、可继续迭代的完整前后端项目使用。
+当前版本已经支持 PR 类型识别、结构化发现项展示、可执行修改示例、GitHub diff 跳转和反馈闭环。
 
 ## 目录
 
@@ -27,15 +27,20 @@ AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应�
 - [常见问题](#常见问题)
 - [项目文档](#项目文档)
 - [安全说明](#安全说明)
+- [版本更新](#版本更新)
 
 ## 功能特性
 
 - 支持提交公开 GitHub 仓库地址和 PR 编号，创建审查任务
-- 支持从 GitHub REST API 获取 PR 标题、作者、分支、改动文件和 patch 内容
-- 支持将 diff 解析为结构化审查上下文，而不是直接把原始 patch 全量传给模型
-- 支持通过 OpenAI-compatible Chat Completion API 生成结构化 AI Review 报告
-- 支持持久化保存审查任务、PR 元数据、Review 结果、风险项和模型调用日志
-- 支持前端展示加载状态、PR 信息、风险项、建议项和错误信息
+- 支持从 GitHub REST API 获取 PR 标题、作者、分支、变更文件和 patch 内容
+- 支持将 diff 解析为结构化审查上下文，而不是把原始 patch 全量传给模型
+- 支持 PR 类型识别：`DOCUMENTATION`、`CODE`、`CONFIG`、`TEST`、`DEPENDENCY`、`CICD`、`MIXED`
+- 支持通过 OpenAI 兼容 Chat Completion API 生成结构化 Review 报告
+- 支持结构化发现项输出：`findingLevel`、`findingKind`、`findingCategory`
+- 支持 `ADVISORY` 作为独立建议等级，降低文档类 PR 的误报和过度诊断
+- 支持 `beforeExample`、`afterExample`、`suggestedPatch`、`diffUrl`
+- 支持发现项反馈闭环：`USEFUL`、`FALSE_POSITIVE`、`IGNORED`、`FIXED`
+- 支持前端卡片式发现项展示，并支持展开详情、反馈操作和 GitHub diff 跳转
 - 支持统一错误响应，对参数错误、上游调用失败、超时等场景给出清晰提示
 
 ## 技术栈
@@ -61,7 +66,7 @@ AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应�
 ### 外部服务
 
 - GitHub REST API
-- OpenAI-compatible 模型 API
+- OpenAI 兼容模型 API
 
 ## 系统架构
 
@@ -69,11 +74,13 @@ AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应�
 
 1. 用户在前端输入 `repoUrl` 和 `prNumber`
 2. 后端校验参数并创建 Review 任务
-3. `GitHubClient` 从 GitHub 获取 PR 基本信息和改动文件
+3. `GitHubClient` 从 GitHub 获取 PR 基本信息和变更文件
 4. Diff 解析层将 patch 转换为结构化审查上下文
-5. `ModelClient` 调用 OpenAI-compatible 模型接口
-6. 后端解析模型输出，保存 Review 结果和风险项
-7. 前端展示最终审查报告和错误提示
+5. `ReviewContextBuildService` 识别 PR 类型并构建 AI 输入上下文
+6. `ModelClient` 调用 OpenAI 兼容模型接口
+7. 后端解析模型输出，执行发现项后处理、去重、降级和兼容回填
+8. 持久化 Review 结果、发现项、反馈记录和模型调用日志
+9. 前端展示最终审查报告、发现项详情和反馈状态
 
 ## 仓库结构
 
@@ -115,8 +122,6 @@ cd pr-review-agent
 - 使用 MySQL 和真实外部配置进行本地开发
 
 #### 使用 H2 快速启动
-
-这是验证后端是否能启动的最快方式：
 
 ```bash
 cd backend
@@ -224,7 +229,7 @@ http://localhost:8080
 | `GITHUB_TOKEN` | 否 | 可选 GitHub Token，可降低限流影响 |
 | `GITHUB_API_TIMEOUT_SECONDS` | 否 | GitHub API 超时时间（秒） |
 | `GITHUB_API_VERSION` | 否 | GitHub API Version Header |
-| `MODEL_API_BASE_URL` | 真实 AI 审查时必需 | OpenAI-compatible API 基础地址 |
+| `MODEL_API_BASE_URL` | 真实 AI 审查时必需 | OpenAI 兼容 API 基础地址 |
 | `MODEL_API_KEY` | 真实 AI 审查时必需 | 模型提供方 API Key |
 | `MODEL_API_MODEL` | 真实 AI 审查时必需 | 模型名称 |
 | `MODEL_API_TIMEOUT_SECONDS` | 否 | 模型接口超时时间（秒） |
@@ -235,7 +240,7 @@ http://localhost:8080
 
 - `backend/src/main/resources/application-local.yml`
 - `.env`
-- 其他已经被 `.gitignore` 覆盖的本地私有配置文件
+- 其他已被 `.gitignore` 覆盖的本地私有配置文件
 
 不要提交 Token、API Key、密码或本地私有配置文件。
 
@@ -271,11 +276,15 @@ Content-Type: application/json
     "repoOwner": "octocat",
     "repoName": "Hello-World",
     "prNumber": 1,
+    "prType": "DOCUMENTATION",
+    "resultViewType": "DOCUMENTATION_FINDINGS",
     "status": "SUCCESS",
-    "riskCount": 2,
-    "summary": "本次 PR 主要更新了示例文档并调整了部分代码结构。",
-    "overallConclusion": "整体风险较低，但建议补充边界场景验证。",
-    "errorMessage": null
+    "findingCount": 2,
+    "summary": "本次 PR 主要优化了 README 文档格式和命令展示。",
+    "overallConclusion": "本次变更属于文档类 PR，建议优先处理文档格式与可执行性问题。",
+    "errorMessage": null,
+    "createdAt": "2026-05-31T14:00:00",
+    "updatedAt": "2026-05-31T14:00:10"
   }
 }
 ```
@@ -291,13 +300,133 @@ GET /api/reviews/{id}
 - 任务状态
 - PR 元数据
 - Review 结果
-- 风险项
-- 任务时间信息
+- 结构化发现项列表
+- 任务创建与更新时间
+
+关键字段说明：
+
+- `prType`：PR 类型
+- `resultViewType`：结果展示类型
+- `findingCount`：发现项数量
+- `findings`：结构化发现项列表
+
+详情响应示例：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "taskId": 1,
+    "status": "SUCCESS",
+    "prType": "DOCUMENTATION",
+    "resultViewType": "DOCUMENTATION_FINDINGS",
+    "findingCount": 1,
+    "errorMessage": null,
+    "pullRequest": {
+      "repoUrl": "https://github.com/octocat/Hello-World",
+      "repoOwner": "octocat",
+      "repoName": "Hello-World",
+      "prNumber": 1,
+      "title": "docs: improve setup guide",
+      "description": "优化 README 中的命令说明与格式展示",
+      "author": "octocat",
+      "sourceBranch": "docs/readme-update",
+      "targetBranch": "main",
+      "state": "open",
+      "changedFiles": 1,
+      "additions": 12,
+      "deletions": 2,
+      "commits": 1,
+      "prUrl": "https://github.com/octocat/Hello-World/pull/1"
+    },
+    "reviewResult": {
+      "summary": "本次 PR 主要调整了 README 的命令展示方式和说明文本。",
+      "changedModules": ["README.md"],
+      "reviewSuggestions": ["建议统一使用 Markdown 代码块展示命令。"],
+      "testSuggestions": ["检查 GitHub 页面渲染效果，并手动执行示例命令。"],
+      "overallConclusion": "本次变更属于文档类 PR，建议优先处理文档格式与可执行性问题。"
+    },
+    "findings": [
+      {
+        "id": 101,
+        "filePath": "README.md",
+        "lineNumber": 42,
+        "codeSnippet": "mkdir demoCreates a directory",
+        "findingLevel": "LOW",
+        "findingKind": "RISK",
+        "findingCategory": "DOCUMENTATION_FORMAT",
+        "title": "命令与说明文本粘连",
+        "description": "命令和说明文字直接拼接在同一行，可能影响可读性和复制执行体验。",
+        "suggestion": "建议使用 Markdown 代码块或空行分隔命令与说明。",
+        "beforeExample": "mkdir demoCreates a directory",
+        "afterExample": "mkdir demo\\n\\nCreates a directory",
+        "suggestedPatch": null,
+        "diffUrl": "https://github.com/octocat/Hello-World/pull/1/files#diff-...",
+        "confidence": 0.88,
+        "feedbackStatus": "USEFUL"
+      }
+    ],
+    "createdAt": "2026-05-31T14:00:00",
+    "updatedAt": "2026-05-31T14:00:10"
+  }
+}
+```
 
 ### 查询 Review 任务列表
 
 ```http
 GET /api/reviews
+```
+
+列表结果中的单条任务包含以下核心字段：
+
+- `taskId`
+- `repoUrl`
+- `repoOwner`
+- `repoName`
+- `prNumber`
+- `prType`
+- `resultViewType`
+- `status`
+- `findingCount`
+- `summary`
+- `overallConclusion`
+- `errorMessage`
+
+### 提交发现项反馈
+
+```http
+POST /api/reviews/{taskId}/findings/{findingId}/feedback
+Content-Type: application/json
+
+{
+  "feedbackType": "USEFUL",
+  "comment": "这条建议对我有帮助"
+}
+```
+
+`feedbackType` 支持以下取值：
+
+- `USEFUL`
+- `FALSE_POSITIVE`
+- `IGNORED`
+- `FIXED`
+
+成功响应示例：
+
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {
+    "taskId": 1,
+    "findingId": 101,
+    "feedbackType": "USEFUL",
+    "comment": "这条建议对我有帮助",
+    "createdAt": "2026-05-31T14:02:00"
+  }
+}
 ```
 
 ### GitHub PR 调试接口
@@ -336,9 +465,31 @@ Content-Type: application/json
 - `pull_request_info`
 - `review_result`
 - `risk_item`
+- `review_feedback`
 - `model_call_log`
 
 应用启动时会根据当前 JPA 配置自动创建或更新表结构。
+
+其中：
+
+- `review_task` 保存任务基本信息、PR 类型、状态和发现项数量
+- `review_result` 保存 PR 总结、建议和总体结论
+- `risk_item` 保留原表名，但语义已经升级为结构化发现项表
+- `review_feedback` 保存发现项反馈闭环记录
+- `model_call_log` 保存模型调用元数据
+
+当前版本中，`risk_item` 表的主要字段已经从旧的 `risk*` 体系升级为新的 `finding*` 体系：
+
+- `findingLevel`
+- `findingKind`
+- `findingCategory`
+- `beforeExample`
+- `afterExample`
+- `suggestedPatch`
+- `diffUrl`
+- `feedbackStatus`
+
+为兼容已有数据，后端启动时会自动检测旧 `risk_level` / `risk_type` 列是否存在；如果存在，且对应新字段为空，会自动回填到新的 `finding_*` 字段中。
 
 ## 测试方式
 
@@ -363,7 +514,10 @@ npm run build
 - `GET /api/health` 返回 `UP`
 - 非法 `repoUrl` 或 `prNumber` 能返回清晰错误信息
 - GitHub API 错误能以统一格式返回
-- 前端能展示加载状态、审查结果和后端错误提示
+- 前端能够展示加载状态、Review 结果和后端错误提示
+- 文档类 PR 能返回 `prType=DOCUMENTATION`
+- 文档类发现项默认不再使用过高等级
+- 发现项可以提交反馈并在详情中回显 `feedbackStatus`
 
 ## 常见问题
 
@@ -413,3 +567,23 @@ npm run build
 - 本地 IDE 私有配置
 
 所有敏感信息都应通过环境变量或本地忽略配置文件提供。
+
+## 版本更新
+
+### 2026-05 精准化 Review 更新
+
+当前版本新增了以下能力：
+
+- 支持 PR 类型识别：`DOCUMENTATION`、`CODE`、`CONFIG`、`TEST`、`DEPENDENCY`、`CICD`、`MIXED`
+- 支持结构化发现项输出：`findingLevel`、`findingKind`、`findingCategory`
+- 引入 `ADVISORY` 作为独立建议等级
+- 支持 `beforeExample`、`afterExample`、`suggestedPatch`、`diffUrl`
+- 支持发现项反馈闭环接口：`POST /api/reviews/{taskId}/findings/{findingId}/feedback`
+- 前端结果页改为卡片式发现项展示，并支持展开详情与反馈操作
+
+如果你是从旧版本升级而来，需要注意：
+
+- API 返回字段已从 `riskItems` 切换为 `findings`
+- 字段名已从 `riskLevel` / `riskType` 切换为 `findingLevel` / `findingCategory`
+- 任务汇总字段已从 `riskCount` 切换为 `findingCount`
+- 文档类 PR 会优先展示“文档问题列表”，而不是统一使用“风险代码列表”

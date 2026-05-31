@@ -27,6 +27,7 @@ public class AiReviewService {
     private final ModelClient modelClient;
     private final ReviewReportService reviewReportService;
     private final RiskItemService riskItemService;
+    private final FindingPostProcessor findingPostProcessor;
     private final ObjectMapper objectMapper;
 
     public AiReviewService(
@@ -35,6 +36,7 @@ public class AiReviewService {
             ModelClient modelClient,
             ReviewReportService reviewReportService,
             RiskItemService riskItemService,
+            FindingPostProcessor findingPostProcessor,
             ObjectMapper objectMapper
     ) {
         this.reviewTaskRepository = reviewTaskRepository;
@@ -42,6 +44,7 @@ public class AiReviewService {
         this.modelClient = modelClient;
         this.reviewReportService = reviewReportService;
         this.riskItemService = riskItemService;
+        this.findingPostProcessor = findingPostProcessor;
         this.objectMapper = objectMapper;
     }
 
@@ -51,6 +54,7 @@ public class AiReviewService {
                 .orElseThrow(() -> new IllegalArgumentException("Review task not found: " + reviewContext.taskId()));
 
         task.setStatus(TaskStatus.RUNNING);
+        task.setPrType(reviewContext.prType());
         task.setErrorMessage(null);
         reviewTaskRepository.save(task);
 
@@ -62,11 +66,12 @@ public class AiReviewService {
             );
             String rawAiResponse = response.getFirstMessageContent();
             AiReviewReportDTO report = parseReport(rawAiResponse, reviewContext.changedModules());
+            report = findingPostProcessor.postProcess(reviewContext, report);
 
             reviewReportService.saveOrUpdate(task, report, rawAiResponse);
-            riskItemService.replaceRiskItems(task, report.getRiskItems());
+            riskItemService.replaceRiskItems(task, report.getFindings());
 
-            task.setRiskCount(report.getRiskItems().size());
+            task.setRiskCount(report.getFindings().size());
             task.setStatus(TaskStatus.SUCCESS);
             task.setErrorMessage(null);
             reviewTaskRepository.save(task);

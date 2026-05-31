@@ -1,7 +1,8 @@
 package com.example.prreview.enums;
 
-public enum RiskLevel {
+public enum FindingLevel {
     HIGH,
     MEDIUM,
-    LOW
+    LOW,
+    ADVISORY
 }

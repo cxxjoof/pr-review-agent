@@ -4,11 +4,15 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import com.example.prreview.entity.ModelCallLog;
 import com.example.prreview.entity.PullRequestInfo;
+import com.example.prreview.entity.ReviewFeedback;
 import com.example.prreview.entity.ReviewResult;
 import com.example.prreview.entity.ReviewTask;
 import com.example.prreview.entity.RiskItem;
-import com.example.prreview.enums.RiskLevel;
-import com.example.prreview.enums.RiskType;
+import com.example.prreview.enums.FeedbackType;
+import com.example.prreview.enums.FindingCategory;
+import com.example.prreview.enums.FindingKind;
+import com.example.prreview.enums.FindingLevel;
+import com.example.prreview.enums.PrType;
 import com.example.prreview.enums.TaskStatus;
 import java.math.BigDecimal;
 import java.util.List;
@@ -34,6 +38,9 @@ class RepositoryIntegrationTest {
     @Autowired
     private ModelCallLogRepository modelCallLogRepository;
 
+    @Autowired
+    private ReviewFeedbackRepository reviewFeedbackRepository;
+
     @Test
     void shouldPersistTaskAndRelatedRecords() {
         ReviewTask task = new ReviewTask();
@@ -41,6 +48,7 @@ class RepositoryIntegrationTest {
         task.setRepoOwner("example");
         task.setRepoName("repo");
         task.setPrNumber(12);
+        task.setPrType(PrType.CODE);
         task.setStatus(TaskStatus.RUNNING);
         ReviewTask savedTask = reviewTaskRepository.save(task);
 
@@ -75,12 +83,21 @@ class RepositoryIntegrationTest {
         riskItem.setFilePath("backend/src/main/java/com/example/prreview/entity/ReviewTask.java");
         riskItem.setLineNumber(42);
         riskItem.setCodeSnippet("task.setStatus(TaskStatus.RUNNING);");
-        riskItem.setRiskLevel(RiskLevel.MEDIUM);
-        riskItem.setRiskType(RiskType.TEST_MISSING);
+        riskItem.setFindingLevel(FindingLevel.MEDIUM);
+        riskItem.setFindingKind(FindingKind.RISK);
+        riskItem.setFindingCategory(FindingCategory.TEST_GAP);
+        riskItem.setTitle("补充状态迁移测试");
         riskItem.setDescription("Task status changes should be covered by tests.");
         riskItem.setSuggestion("Add repository and service-level tests for transitions.");
         riskItem.setConfidence(new BigDecimal("0.86"));
-        riskItemRepository.save(riskItem);
+        RiskItem savedFinding = riskItemRepository.save(riskItem);
+
+        ReviewFeedback feedback = new ReviewFeedback();
+        feedback.setTask(savedTask);
+        feedback.setFinding(savedFinding);
+        feedback.setFeedbackType(FeedbackType.USEFUL);
+        feedback.setComment("This is actionable.");
+        reviewFeedbackRepository.save(feedback);
 
         ModelCallLog modelCallLog = new ModelCallLog();
         modelCallLog.setTask(savedTask);
@@ -108,9 +125,13 @@ class RepositoryIntegrationTest {
                 .extracting(ReviewResult::getSummary)
                 .isEqualTo("Adds persistence support for review tasks.");
 
-        List<RiskItem> mediumRisks = riskItemRepository.findByTaskIdAndRiskLevel(savedTask.getId(), RiskLevel.MEDIUM);
-        assertThat(mediumRisks).hasSize(1);
-        assertThat(mediumRisks.get(0).getRiskType()).isEqualTo(RiskType.TEST_MISSING);
+        List<RiskItem> mediumFindings = riskItemRepository.findByTaskIdAndFindingLevel(savedTask.getId(), FindingLevel.MEDIUM);
+        assertThat(mediumFindings).hasSize(1);
+        assertThat(mediumFindings.get(0).getFindingCategory()).isEqualTo(FindingCategory.TEST_GAP);
+
+        List<ReviewFeedback> feedbackLogs = reviewFeedbackRepository.findByTaskIdOrderByCreatedAtDesc(savedTask.getId());
+        assertThat(feedbackLogs).hasSize(1);
+        assertThat(feedbackLogs.get(0).getFeedbackType()).isEqualTo(FeedbackType.USEFUL);
 
         List<ModelCallLog> logs = modelCallLogRepository.findByTaskId(savedTask.getId());
         assertThat(logs).hasSize(1);

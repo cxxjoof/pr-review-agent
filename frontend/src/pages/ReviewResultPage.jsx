@@ -11,10 +11,13 @@ import {
   Tag,
   Typography
 } from "antd";
+import FindingList from "../components/FindingList.jsx";
 import ReviewSummaryCard from "../components/ReviewSummaryCard.jsx";
-import RiskItemTable from "../components/RiskItemTable.jsx";
 import SuggestionList from "../components/SuggestionList.jsx";
-import { getRiskLevelMeta } from "../utils/riskLevel.js";
+import {
+  getFindingLevelMeta,
+  getResultSectionTitle
+} from "../utils/riskLevel.js";
 
 function formatDateTime(value) {
   if (!value) {
@@ -32,14 +35,43 @@ function formatDateTime(value) {
   }).format(parsedDate);
 }
 
-function ReviewResultPage({ reviewDetail, onBack, onAnalyzeAnother }) {
+function getHighestFindingLevel(findings = []) {
+  return [...findings]
+    .sort(
+      (left, right) =>
+        getFindingLevelMeta(right.findingLevel).order -
+        getFindingLevelMeta(left.findingLevel).order
+    )
+    .at(0)?.findingLevel;
+}
+
+function buildEmptyDescription(prType) {
+  if (prType === "DOCUMENTATION") {
+    return "未发现明确文档问题，建议人工检查渲染效果与命令可执行性。";
+  }
+
+  if (prType === "CODE" || prType === "MIXED") {
+    return "当前结果没有识别到明确风险项，建议结合业务上下文做一次人工复核。";
+  }
+
+  return "当前结果没有识别到明确发现项，建议结合实际环境做针对性验证。";
+}
+
+function ReviewResultPage({
+  reviewDetail,
+  submittingFeedback,
+  onSubmitFeedback,
+  onBack,
+  onAnalyzeAnother
+}) {
   const pullRequest = reviewDetail?.pullRequest ?? {};
   const reviewResult = reviewDetail?.reviewResult ?? {};
-  const riskItems = reviewDetail?.riskItems ?? [];
-  const highestRiskLevel = riskItems.find((item) => item.riskLevel)?.riskLevel;
-  const highestRiskMeta = highestRiskLevel
-    ? getRiskLevelMeta(highestRiskLevel)
-    : { label: "暂无高风险", color: "success" };
+  const findings = reviewDetail?.findings ?? [];
+  const prType = reviewDetail?.prType;
+  const highestFindingLevel = getHighestFindingLevel(findings);
+  const highestFindingMeta = highestFindingLevel
+    ? getFindingLevelMeta(highestFindingLevel)
+    : { label: "暂未发现高风险", color: "success" };
 
   return (
     <div className="app-shell">
@@ -61,19 +93,19 @@ function ReviewResultPage({ reviewDetail, onBack, onAnalyzeAnother }) {
               <Col xs={24} lg={15}>
                 <Space direction="vertical" size={14}>
                   <Tag className="hero-tag" bordered={false}>
-                    Review Result
+                    {prType || "REVIEW"}
                   </Tag>
                   <Typography.Title level={1} className="result-title">
                     {pullRequest.title || `${pullRequest.repoOwner}/${pullRequest.repoName} PR #${pullRequest.prNumber}`}
                   </Typography.Title>
                   <Typography.Paragraph className="hero-description">
-                    {reviewResult.summary || "报告已生成，你可以从风险项、Review 建议和测试建议三个维度快速复查这次改动。"}
+                    {reviewResult.summary || "报告已生成，你可以从发现项、Review 建议和测试建议三个维度快速复核这次改动。"}
                   </Typography.Paragraph>
                   <Space wrap>
                     <Tag className="feature-tag">{pullRequest.repoOwner}/{pullRequest.repoName}</Tag>
                     <Tag className="feature-tag">PR #{pullRequest.prNumber}</Tag>
                     <Tag className="feature-tag">状态：{reviewDetail?.status}</Tag>
-                    <Tag color={highestRiskMeta.color}>{highestRiskMeta.label}</Tag>
+                    <Tag color={highestFindingMeta.color}>{highestFindingMeta.label}</Tag>
                   </Space>
                 </Space>
               </Col>
@@ -155,13 +187,19 @@ function ReviewResultPage({ reviewDetail, onBack, onAnalyzeAnother }) {
             </Col>
           </Row>
 
-          <RiskItemTable riskItems={riskItems} />
+          <FindingList
+            title={getResultSectionTitle(prType)}
+            findings={findings}
+            emptyDescription={buildEmptyDescription(prType)}
+            submittingFeedback={submittingFeedback}
+            onSubmitFeedback={onSubmitFeedback}
+          />
 
           <Row gutter={[24, 24]}>
             <Col xs={24} xl={12}>
               <SuggestionList
                 title="Review 建议"
-                description="这些建议更偏向代码实现、鲁棒性和可维护性。"
+                description="这些建议更偏向实现质量、鲁棒性和可维护性。"
                 items={reviewResult.reviewSuggestions}
                 variant="review"
               />
