@@ -13,6 +13,8 @@ AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应�
 
 当前版本已经支持 PR 类型识别、结构化发现项展示、可执行修改示例、GitHub diff 跳转和反馈闭环。
 
+项目demo展示：https://www.bilibili.com/video/BV1uDVS6bEta/?vd_source=b6b868499434091a7c7161c5f27e68be
+
 ## 目录
 
 - [功能特性](#功能特性)
