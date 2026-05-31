@@ -4,8 +4,10 @@ function ReviewSummaryCard({ reviewDetail }) {
   const summary = reviewDetail?.reviewResult?.summary;
   const changedModules = reviewDetail?.reviewResult?.changedModules ?? [];
   const overallConclusion = reviewDetail?.reviewResult?.overallConclusion;
-  const riskCount = reviewDetail?.riskCount ?? 0;
+  const findingCount = reviewDetail?.findingCount ?? 0;
   const status = reviewDetail?.status ?? "UNKNOWN";
+  const prType = reviewDetail?.prType ?? "UNKNOWN";
+  const resultViewType = reviewDetail?.resultViewType ?? "REVIEW_FINDINGS";
 
   return (
     <Card className="summary-card" bordered={false}>
@@ -16,7 +18,7 @@ function ReviewSummaryCard({ reviewDetail }) {
               Review 摘要
             </Typography.Title>
             <Typography.Paragraph className="card-subtitle">
-              汇总本次 PR 的主要改动、影响模块和整体风险判断。
+              汇总本次 PR 的主要改动、影响模块和整体评审判断。
             </Typography.Paragraph>
           </div>
           <Space wrap>
@@ -24,17 +26,23 @@ function ReviewSummaryCard({ reviewDetail }) {
               状态：{status}
             </Tag>
             <Tag color="default" className="metric-tag">
-              风险项：{riskCount}
+              PR 类型：{prType}
+            </Tag>
+            <Tag color="default" className="metric-tag">
+              发现项：{findingCount}
             </Tag>
           </Space>
         </div>
 
         <Descriptions column={1} size="small" className="summary-descriptions">
-          <Descriptions.Item label="PR 变更总结">
-            {summary || "模型暂未返回变更总结。"}
+          <Descriptions.Item label="变更摘要">
+            {summary || "模型暂未返回变更摘要。"}
           </Descriptions.Item>
-          <Descriptions.Item label="总体评价">
-            {overallConclusion || "模型暂未返回总体评价。"}
+          <Descriptions.Item label="结果视图">
+            {resultViewType}
+          </Descriptions.Item>
+          <Descriptions.Item label="总体结论">
+            {overallConclusion || "模型暂未返回总体结论。"}
           </Descriptions.Item>
         </Descriptions>
 

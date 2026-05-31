@@ -13,13 +13,18 @@ import {
 import PrInputForm from "../components/PrInputForm.jsx";
 import LoadingStatus from "../components/LoadingStatus.jsx";
 import ReviewResultPage from "./ReviewResultPage.jsx";
-import { createReviewTask, getReviewResult } from "../api/reviewApi.js";
+import {
+  createReviewTask,
+  getReviewResult,
+  submitFindingFeedback
+} from "../api/reviewApi.js";
 
 const featureTags = [
-  "PR 变更总结",
-  "风险代码识别",
-  "Review 建议",
-  "测试建议"
+  "PR 类型识别",
+  "高信号发现项",
+  "结构化 Review",
+  "修复示例",
+  "反馈闭环"
 ];
 
 function HomePage() {
@@ -29,6 +34,7 @@ function HomePage() {
   const [submitError, setSubmitError] = useState("");
   const [lastSubmission, setLastSubmission] = useState(null);
   const [reviewDetail, setReviewDetail] = useState(null);
+  const [submittingFeedback, setSubmittingFeedback] = useState({});
 
   const handleSubmit = async (values) => {
     setSubmitting(true);
@@ -55,11 +61,54 @@ function HomePage() {
     }
   };
 
+  const handleSubmitFeedback = async (findingId, feedbackType) => {
+    if (!reviewDetail?.taskId || !findingId) {
+      return;
+    }
+
+    setSubmittingFeedback((current) => ({
+      ...current,
+      [findingId]: true
+    }));
+
+    try {
+      const feedback = await submitFindingFeedback(reviewDetail.taskId, findingId, {
+        feedbackType
+      });
+
+      startTransition(() => {
+        setReviewDetail((current) => {
+          if (!current) {
+            return current;
+          }
+
+          return {
+            ...current,
+            findings: (current.findings ?? []).map((finding) =>
+              finding.id === findingId
+                ? { ...finding, feedbackStatus: feedback.feedbackType }
+                : finding
+            )
+          };
+        });
+      });
+      messageApi.success("反馈已记录。");
+    } catch (error) {
+      messageApi.error(error.message || "提交反馈失败。");
+    } finally {
+      setSubmittingFeedback((current) => ({
+        ...current,
+        [findingId]: false
+      }));
+    }
+  };
+
   const handleReset = () => {
     setReviewDetail(null);
     setSubmitError("");
     setSubmitting(false);
     setLoadingStep(1);
+    setSubmittingFeedback({});
   };
 
   if (reviewDetail) {
@@ -68,6 +117,8 @@ function HomePage() {
         {contextHolder}
         <ReviewResultPage
           reviewDetail={reviewDetail}
+          submittingFeedback={submittingFeedback}
+          onSubmitFeedback={handleSubmitFeedback}
           onBack={handleReset}
           onAnalyzeAnother={handleReset}
         />
@@ -86,16 +137,15 @@ function HomePage() {
             <Col xs={24} lg={13}>
               <Space direction="vertical" size={24} className="hero-section">
                 <Tag className="hero-tag" bordered={false}>
-                  Frontend Base Page
+                  AI PR Review
                 </Tag>
                 <Space direction="vertical" size={12}>
                   <Typography.Title level={1} className="hero-title">
                     AI PR Review 助手
                   </Typography.Title>
                   <Typography.Paragraph className="hero-description">
-                    输入 GitHub 仓库地址和 Pull Request 编号，后续模块会基于
-                    PR diff 生成结构化代码审查报告。当前页面先完成基础输入、
-                    布局和交互反馈，为后端联调预留好位置。
+                    输入 GitHub 仓库地址和 Pull Request 编号，系统会先识别 PR 类型，再生成结构化发现项、
+                    Review 建议、测试建议和可执行修复线索。
                   </Typography.Paragraph>
                 </Space>
                 <div className="feature-tag-group">
@@ -106,10 +156,10 @@ function HomePage() {
                   ))}
                 </div>
                 <Card className="info-card" bordered={false}>
-                  <Typography.Title level={4}>当前模块范围</Typography.Title>
+                  <Typography.Title level={4}>当前优化重点</Typography.Title>
                   <Typography.Paragraph>
-                    当前实现严格对应开发计划的第十模块：前端对接 Review 接口，
-                    展示加载状态、PR 基本信息、风险项、Review 建议和测试建议。
+                    当前版本重点解决文档类 PR 误报偏重、风险类型过粗、建议不可直接采纳、结果页横向滚动重，
+                    并增加反馈闭环能力。
                   </Typography.Paragraph>
                 </Card>
               </Space>
@@ -140,18 +190,18 @@ function HomePage() {
           <Row gutter={[24, 24]} className="status-row">
             <Col xs={24} md={12}>
               <Card className="status-card" bordered={false}>
-                <Typography.Title level={4}>页面验收点</Typography.Title>
+                <Typography.Title level={4}>当前支持能力</Typography.Title>
                 <Space direction="vertical" size={10}>
-                  <Alert message="系统标题可见" type="success" showIcon />
-                  <Alert message="GitHub 仓库地址输入框已提供" type="success" showIcon />
-                  <Alert message="PR 编号输入框已提供" type="success" showIcon />
-                  <Alert message="开始分析按钮已提供" type="success" showIcon />
+                  <Alert message="PR 类型识别" type="success" showIcon />
+                  <Alert message="结构化发现项输出" type="success" showIcon />
+                  <Alert message="修改前 / 修改后示例展示" type="success" showIcon />
+                  <Alert message="反馈闭环接口" type="success" showIcon />
                 </Space>
               </Card>
             </Col>
             <Col xs={24} md={12}>
               <Card className="status-card" bordered={false}>
-                <Typography.Title level={4}>本次联调目标</Typography.Title>
+                <Typography.Title level={4}>联调状态</Typography.Title>
                 {lastSubmission ? (
                   <Space direction="vertical" size={16} className="full-width">
                     <Statistic
