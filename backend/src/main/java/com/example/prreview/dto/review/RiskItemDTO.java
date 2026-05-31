@@ -12,23 +12,41 @@ public class RiskItemDTO {
 
     private String codeSnippet;
 
-    private String riskLevel;
+    private String findingLevel;
 
-    private String riskType;
+    private String findingKind;
+
+    private String findingCategory;
+
+    private String title;
 
     private String description;
 
     private String suggestion;
+
+    private String beforeExample;
+
+    private String afterExample;
+
+    private String suggestedPatch;
+
+    private String diffUrl;
 
     private BigDecimal confidence;
 
     public void normalize() {
         filePath = cleanText(filePath);
         codeSnippet = cleanText(codeSnippet);
-        riskLevel = cleanText(riskLevel);
-        riskType = cleanText(riskType);
+        findingLevel = cleanText(findingLevel);
+        findingKind = cleanText(findingKind);
+        findingCategory = cleanText(findingCategory);
+        title = cleanText(title);
         description = cleanText(description);
         suggestion = cleanText(suggestion);
+        beforeExample = cleanText(beforeExample);
+        afterExample = cleanText(afterExample);
+        suggestedPatch = cleanText(suggestedPatch);
+        diffUrl = cleanText(diffUrl);
     }
 
     public String getFilePath() {
@@ -55,20 +73,36 @@ public class RiskItemDTO {
         this.codeSnippet = codeSnippet;
     }
 
-    public String getRiskLevel() {
-        return riskLevel;
+    public String getFindingLevel() {
+        return findingLevel;
     }
 
-    public void setRiskLevel(String riskLevel) {
-        this.riskLevel = riskLevel;
+    public void setFindingLevel(String findingLevel) {
+        this.findingLevel = findingLevel;
     }
 
-    public String getRiskType() {
-        return riskType;
+    public String getFindingKind() {
+        return findingKind;
     }
 
-    public void setRiskType(String riskType) {
-        this.riskType = riskType;
+    public void setFindingKind(String findingKind) {
+        this.findingKind = findingKind;
+    }
+
+    public String getFindingCategory() {
+        return findingCategory;
+    }
+
+    public void setFindingCategory(String findingCategory) {
+        this.findingCategory = findingCategory;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
     }
 
     public String getDescription() {
@@ -85,6 +119,38 @@ public class RiskItemDTO {
 
     public void setSuggestion(String suggestion) {
         this.suggestion = suggestion;
+    }
+
+    public String getBeforeExample() {
+        return beforeExample;
+    }
+
+    public void setBeforeExample(String beforeExample) {
+        this.beforeExample = beforeExample;
+    }
+
+    public String getAfterExample() {
+        return afterExample;
+    }
+
+    public void setAfterExample(String afterExample) {
+        this.afterExample = afterExample;
+    }
+
+    public String getSuggestedPatch() {
+        return suggestedPatch;
+    }
+
+    public void setSuggestedPatch(String suggestedPatch) {
+        this.suggestedPatch = suggestedPatch;
+    }
+
+    public String getDiffUrl() {
+        return diffUrl;
+    }
+
+    public void setDiffUrl(String diffUrl) {
+        this.diffUrl = diffUrl;
     }
 
     public BigDecimal getConfidence() {

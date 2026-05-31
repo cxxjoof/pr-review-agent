@@ -1,7 +1,9 @@
 package com.example.prreview.entity;
 
-import com.example.prreview.enums.RiskLevel;
-import com.example.prreview.enums.RiskType;
+import com.example.prreview.enums.FeedbackType;
+import com.example.prreview.enums.FindingCategory;
+import com.example.prreview.enums.FindingKind;
+import com.example.prreview.enums.FindingLevel;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -23,8 +25,8 @@ import java.time.LocalDateTime;
 @Table(
         name = "risk_item",
         indexes = {
-            @Index(name = "idx_task_id", columnList = "task_id"),
-            @Index(name = "idx_risk_level", columnList = "risk_level"),
+            @Index(name = "idx_risk_item_task_id", columnList = "task_id"),
+            @Index(name = "idx_finding_level", columnList = "finding_level"),
             @Index(name = "idx_file_path", columnList = "file_path")
         }
 )
@@ -52,12 +54,19 @@ public class RiskItem {
     private String codeSnippet;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "risk_level", nullable = false, length = 30)
-    private RiskLevel riskLevel;
+    @Column(name = "finding_level", length = 30)
+    private FindingLevel findingLevel;
 
     @Enumerated(EnumType.STRING)
-    @Column(name = "risk_type", length = 100)
-    private RiskType riskType;
+    @Column(name = "finding_kind", length = 30)
+    private FindingKind findingKind;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "finding_category", length = 100)
+    private FindingCategory findingCategory;
+
+    @Column(length = 200)
+    private String title;
 
     @Column(columnDefinition = "TEXT")
     private String description;
@@ -65,8 +74,24 @@ public class RiskItem {
     @Column(columnDefinition = "TEXT")
     private String suggestion;
 
+    @Column(name = "before_example", columnDefinition = "TEXT")
+    private String beforeExample;
+
+    @Column(name = "after_example", columnDefinition = "TEXT")
+    private String afterExample;
+
+    @Column(name = "suggested_patch", columnDefinition = "TEXT")
+    private String suggestedPatch;
+
+    @Column(name = "diff_url", length = 1000)
+    private String diffUrl;
+
     @Column(precision = 5, scale = 2)
     private BigDecimal confidence;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "feedback_status", length = 30)
+    private FeedbackType feedbackStatus;
 
     @Column(name = "created_at", nullable = false)
     private LocalDateTime createdAt;
@@ -118,20 +143,36 @@ public class RiskItem {
         this.codeSnippet = codeSnippet;
     }
 
-    public RiskLevel getRiskLevel() {
-        return riskLevel;
+    public FindingLevel getFindingLevel() {
+        return findingLevel;
     }
 
-    public void setRiskLevel(RiskLevel riskLevel) {
-        this.riskLevel = riskLevel;
+    public void setFindingLevel(FindingLevel findingLevel) {
+        this.findingLevel = findingLevel;
     }
 
-    public RiskType getRiskType() {
-        return riskType;
+    public FindingKind getFindingKind() {
+        return findingKind;
     }
 
-    public void setRiskType(RiskType riskType) {
-        this.riskType = riskType;
+    public void setFindingKind(FindingKind findingKind) {
+        this.findingKind = findingKind;
+    }
+
+    public FindingCategory getFindingCategory() {
+        return findingCategory;
+    }
+
+    public void setFindingCategory(FindingCategory findingCategory) {
+        this.findingCategory = findingCategory;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
     }
 
     public String getDescription() {
@@ -150,12 +191,52 @@ public class RiskItem {
         this.suggestion = suggestion;
     }
 
+    public String getBeforeExample() {
+        return beforeExample;
+    }
+
+    public void setBeforeExample(String beforeExample) {
+        this.beforeExample = beforeExample;
+    }
+
+    public String getAfterExample() {
+        return afterExample;
+    }
+
+    public void setAfterExample(String afterExample) {
+        this.afterExample = afterExample;
+    }
+
+    public String getSuggestedPatch() {
+        return suggestedPatch;
+    }
+
+    public void setSuggestedPatch(String suggestedPatch) {
+        this.suggestedPatch = suggestedPatch;
+    }
+
+    public String getDiffUrl() {
+        return diffUrl;
+    }
+
+    public void setDiffUrl(String diffUrl) {
+        this.diffUrl = diffUrl;
+    }
+
     public BigDecimal getConfidence() {
         return confidence;
     }
 
     public void setConfidence(BigDecimal confidence) {
         this.confidence = confidence;
+    }
+
+    public FeedbackType getFeedbackStatus() {
+        return feedbackStatus;
+    }
+
+    public void setFeedbackStatus(FeedbackType feedbackStatus) {
+        this.feedbackStatus = feedbackStatus;
     }
 
     public LocalDateTime getCreatedAt() {

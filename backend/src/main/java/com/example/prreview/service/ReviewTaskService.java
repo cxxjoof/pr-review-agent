@@ -6,17 +6,21 @@ import com.example.prreview.dto.request.CreateReviewRequest;
 import com.example.prreview.dto.response.ReviewResultResponse;
 import com.example.prreview.dto.response.ReviewTaskResponse;
 import com.example.prreview.entity.PullRequestInfo;
+import com.example.prreview.entity.ReviewFeedback;
 import com.example.prreview.entity.ReviewResult;
 import com.example.prreview.entity.ReviewTask;
 import com.example.prreview.entity.RiskItem;
 import com.example.prreview.exception.BusinessException;
 import com.example.prreview.repository.PullRequestInfoRepository;
+import com.example.prreview.repository.ReviewFeedbackRepository;
 import com.example.prreview.repository.ReviewResultRepository;
 import com.example.prreview.repository.ReviewTaskRepository;
 import com.example.prreview.repository.RiskItemRepository;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -31,6 +35,8 @@ public class ReviewTaskService {
     private final PullRequestInfoRepository pullRequestInfoRepository;
     private final ReviewResultRepository reviewResultRepository;
     private final RiskItemRepository riskItemRepository;
+    private final ReviewFeedbackRepository reviewFeedbackRepository;
+    private final ReviewViewService reviewViewService;
     private final ObjectMapper objectMapper;
 
     public ReviewTaskService(
@@ -41,6 +47,8 @@ public class ReviewTaskService {
             PullRequestInfoRepository pullRequestInfoRepository,
             ReviewResultRepository reviewResultRepository,
             RiskItemRepository riskItemRepository,
+            ReviewFeedbackRepository reviewFeedbackRepository,
+            ReviewViewService reviewViewService,
             ObjectMapper objectMapper
     ) {
         this.gitHubPrService = gitHubPrService;
@@ -50,6 +58,8 @@ public class ReviewTaskService {
         this.pullRequestInfoRepository = pullRequestInfoRepository;
         this.reviewResultRepository = reviewResultRepository;
         this.riskItemRepository = riskItemRepository;
+        this.reviewFeedbackRepository = reviewFeedbackRepository;
+        this.reviewViewService = reviewViewService;
         this.objectMapper = objectMapper;
     }
 
@@ -78,16 +88,19 @@ public class ReviewTaskService {
         ReviewTask task = findTask(taskId);
         PullRequestInfo pullRequestInfo = pullRequestInfoRepository.findByTaskId(taskId).orElse(null);
         ReviewResult reviewResult = reviewResultRepository.findByTaskId(taskId).orElse(null);
-        List<RiskItem> riskItems = riskItemRepository.findByTaskId(taskId);
+        List<RiskItem> findings = riskItemRepository.findByTaskId(taskId);
+        Map<Long, String> latestFeedbackStatuses = buildLatestFeedbackStatusMap(taskId);
 
         return new ReviewResultResponse(
                 task.getId(),
                 task.getStatus().name(),
+                task.getPrType() == null ? null : task.getPrType().name(),
+                reviewViewService.resolveResultViewType(task.getPrType()).name(),
                 task.getRiskCount(),
                 task.getErrorMessage(),
                 toPullRequestPayload(task, pullRequestInfo),
                 toReviewReportPayload(reviewResult),
-                riskItems.stream().map(this::toRiskItemPayload).toList(),
+                findings.stream().map(finding -> toFindingPayload(finding, latestFeedbackStatuses.get(finding.getId()))).toList(),
                 task.getCreatedAt(),
                 task.getUpdatedAt()
         );
@@ -111,6 +124,8 @@ public class ReviewTaskService {
                 task.getRepoOwner(),
                 task.getRepoName(),
                 task.getPrNumber(),
+                task.getPrType() == null ? null : task.getPrType().name(),
+                reviewViewService.resolveResultViewType(task.getPrType()).name(),
                 task.getStatus().name(),
                 task.getRiskCount(),
                 reviewResult == null ? null : reviewResult.getSummary(),
@@ -155,17 +170,35 @@ public class ReviewTaskService {
         );
     }
 
-    private ReviewResultResponse.RiskItemPayload toRiskItemPayload(RiskItem riskItem) {
-        return new ReviewResultResponse.RiskItemPayload(
-                riskItem.getFilePath(),
-                riskItem.getLineNumber(),
-                riskItem.getCodeSnippet(),
-                riskItem.getRiskLevel() == null ? null : riskItem.getRiskLevel().name(),
-                riskItem.getRiskType() == null ? null : riskItem.getRiskType().name(),
-                riskItem.getDescription(),
-                riskItem.getSuggestion(),
-                riskItem.getConfidence()
+    private ReviewResultResponse.FindingPayload toFindingPayload(RiskItem finding, String feedbackStatus) {
+        return new ReviewResultResponse.FindingPayload(
+                finding.getId(),
+                finding.getFilePath(),
+                finding.getLineNumber(),
+                finding.getCodeSnippet(),
+                finding.getFindingLevel() == null ? null : finding.getFindingLevel().name(),
+                finding.getFindingKind() == null ? null : finding.getFindingKind().name(),
+                finding.getFindingCategory() == null ? null : finding.getFindingCategory().name(),
+                finding.getTitle(),
+                finding.getDescription(),
+                finding.getSuggestion(),
+                finding.getBeforeExample(),
+                finding.getAfterExample(),
+                finding.getSuggestedPatch(),
+                finding.getDiffUrl(),
+                finding.getConfidence(),
+                feedbackStatus
         );
+    }
+
+    private Map<Long, String> buildLatestFeedbackStatusMap(Long taskId) {
+        List<ReviewFeedback> feedbackLogs = reviewFeedbackRepository.findByTaskIdOrderByCreatedAtDesc(taskId);
+        Map<Long, String> statusMap = new LinkedHashMap<>();
+        for (ReviewFeedback feedback : feedbackLogs) {
+            Long findingId = feedback.getFinding().getId();
+            statusMap.putIfAbsent(findingId, feedback.getFeedbackType().name());
+        }
+        return statusMap;
     }
 
     private List<String> readJsonList(String json) {

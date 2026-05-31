@@ -3,8 +3,11 @@ package com.example.prreview.service;
 import com.example.prreview.dto.review.RiskItemDTO;
 import com.example.prreview.entity.ReviewTask;
 import com.example.prreview.entity.RiskItem;
-import com.example.prreview.enums.RiskLevel;
-import com.example.prreview.enums.RiskType;
+import com.example.prreview.enums.FeedbackType;
+import com.example.prreview.enums.FindingCategory;
+import com.example.prreview.enums.FindingKind;
+import com.example.prreview.enums.FindingLevel;
+import com.example.prreview.exception.BusinessException;
 import com.example.prreview.repository.RiskItemRepository;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -22,57 +25,85 @@ public class RiskItemService {
         this.riskItemRepository = riskItemRepository;
     }
 
-    public List<RiskItem> replaceRiskItems(ReviewTask task, List<RiskItemDTO> riskItems) {
+    public List<RiskItem> replaceRiskItems(ReviewTask task, List<RiskItemDTO> findings) {
         if (task == null || task.getId() == null) {
             throw new IllegalArgumentException("Persisted review task is required.");
         }
 
         riskItemRepository.deleteByTask_Id(task.getId());
-        if (riskItems == null || riskItems.isEmpty()) {
+        if (findings == null || findings.isEmpty()) {
             return List.of();
         }
 
-        List<RiskItem> entities = riskItems.stream()
-                .map(riskItem -> toEntity(task, riskItem))
+        List<RiskItem> entities = findings.stream()
+                .map(finding -> toEntity(task, finding))
                 .toList();
         return riskItemRepository.saveAll(entities);
     }
 
-    private RiskItem toEntity(ReviewTask task, RiskItemDTO riskItemDto) {
-        RiskItem riskItem = new RiskItem();
-        riskItem.setTask(task);
-        riskItem.setFilePath(StringUtils.hasText(riskItemDto.getFilePath()) ? riskItemDto.getFilePath().trim() : "unknown");
-        riskItem.setLineNumber(riskItemDto.getLineNumber());
-        riskItem.setCodeSnippet(trimToNull(riskItemDto.getCodeSnippet()));
-        riskItem.setRiskLevel(resolveRiskLevel(riskItemDto.getRiskLevel()));
-        riskItem.setRiskType(resolveRiskType(riskItemDto.getRiskType()));
-        riskItem.setDescription(trimToNull(riskItemDto.getDescription()));
-        riskItem.setSuggestion(trimToNull(riskItemDto.getSuggestion()));
-        riskItem.setConfidence(normalizeConfidence(riskItemDto.getConfidence()));
-        return riskItem;
+    public RiskItem findByTaskIdAndFindingId(Long taskId, Long findingId) {
+        return riskItemRepository.findByIdAndTaskId(findingId, taskId)
+                .orElseThrow(() -> BusinessException.notFound("Finding not found for the review task."));
     }
 
-    private RiskLevel resolveRiskLevel(String riskLevel) {
-        if (!StringUtils.hasText(riskLevel)) {
-            return RiskLevel.MEDIUM;
+    public RiskItem save(RiskItem finding) {
+        return riskItemRepository.save(finding);
+    }
+
+    private RiskItem toEntity(ReviewTask task, RiskItemDTO findingDto) {
+        RiskItem finding = new RiskItem();
+        finding.setTask(task);
+        finding.setFilePath(StringUtils.hasText(findingDto.getFilePath()) ? findingDto.getFilePath().trim() : "unknown");
+        finding.setLineNumber(findingDto.getLineNumber());
+        finding.setCodeSnippet(trimToNull(findingDto.getCodeSnippet()));
+        finding.setFindingLevel(resolveFindingLevel(findingDto.getFindingLevel()));
+        finding.setFindingKind(resolveFindingKind(findingDto.getFindingKind()));
+        finding.setFindingCategory(resolveFindingCategory(findingDto.getFindingCategory()));
+        finding.setTitle(trimToNull(findingDto.getTitle()));
+        finding.setDescription(trimToNull(findingDto.getDescription()));
+        finding.setSuggestion(trimToNull(findingDto.getSuggestion()));
+        finding.setBeforeExample(trimToNull(findingDto.getBeforeExample()));
+        finding.setAfterExample(trimToNull(findingDto.getAfterExample()));
+        finding.setSuggestedPatch(trimToNull(findingDto.getSuggestedPatch()));
+        finding.setDiffUrl(trimToNull(findingDto.getDiffUrl()));
+        finding.setConfidence(normalizeConfidence(findingDto.getConfidence()));
+        finding.setFeedbackStatus((FeedbackType) null);
+        return finding;
+    }
+
+    private FindingLevel resolveFindingLevel(String findingLevel) {
+        if (!StringUtils.hasText(findingLevel)) {
+            return FindingLevel.ADVISORY;
         }
 
         try {
-            return RiskLevel.valueOf(riskLevel.trim().toUpperCase(Locale.ROOT));
+            return FindingLevel.valueOf(findingLevel.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            return RiskLevel.LOW;
+            return FindingLevel.ADVISORY;
         }
     }
 
-    private RiskType resolveRiskType(String riskType) {
-        if (!StringUtils.hasText(riskType)) {
-            return RiskType.OTHER;
+    private FindingKind resolveFindingKind(String findingKind) {
+        if (!StringUtils.hasText(findingKind)) {
+            return FindingKind.ADVISORY;
         }
 
         try {
-            return RiskType.valueOf(riskType.trim().toUpperCase(Locale.ROOT));
+            return FindingKind.valueOf(findingKind.trim().toUpperCase(Locale.ROOT));
         } catch (IllegalArgumentException exception) {
-            return RiskType.OTHER;
+            return FindingKind.ADVISORY;
+        }
+    }
+
+    private FindingCategory resolveFindingCategory(String findingCategory) {
+        if (!StringUtils.hasText(findingCategory)) {
+            return FindingCategory.OTHER;
+        }
+
+        try {
+            return FindingCategory.valueOf(findingCategory.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException exception) {
+            return FindingCategory.OTHER;
         }
     }
 
@@ -81,7 +112,7 @@ public class RiskItemService {
             return null;
         }
 
-        return confidence.max(BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        return confidence.max(BigDecimal.ZERO).min(BigDecimal.ONE).setScale(2, RoundingMode.HALF_UP);
     }
 
     private String trimToNull(String value) {

@@ -13,7 +13,7 @@ public class AiReviewReportDTO {
 
     private List<String> changedModules = new ArrayList<>();
 
-    private List<RiskItemDTO> riskItems = new ArrayList<>();
+    private List<RiskItemDTO> findings = new ArrayList<>();
 
     private List<String> reviewSuggestions = new ArrayList<>();
 
@@ -27,9 +27,9 @@ public class AiReviewReportDTO {
         changedModules = normalizeStrings(changedModules);
         reviewSuggestions = normalizeStrings(reviewSuggestions);
         testSuggestions = normalizeStrings(testSuggestions);
-        riskItems = riskItems == null
+        findings = findings == null
                 ? new ArrayList<>()
-                : riskItems.stream()
+                : findings.stream()
                         .filter(Objects::nonNull)
                         .peek(RiskItemDTO::normalize)
                         .collect(Collectors.toCollection(ArrayList::new));
@@ -57,12 +57,12 @@ public class AiReviewReportDTO {
         this.changedModules = changedModules;
     }
 
-    public List<RiskItemDTO> getRiskItems() {
-        return riskItems;
+    public List<RiskItemDTO> getFindings() {
+        return findings;
     }
 
-    public void setRiskItems(List<RiskItemDTO> riskItems) {
-        this.riskItems = riskItems;
+    public void setFindings(List<RiskItemDTO> findings) {
+        this.findings = findings;
     }
 
     public List<String> getReviewSuggestions() {

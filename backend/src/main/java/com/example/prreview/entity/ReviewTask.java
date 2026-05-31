@@ -1,5 +1,6 @@
 package com.example.prreview.entity;
 
+import com.example.prreview.enums.PrType;
 import com.example.prreview.enums.TaskStatus;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -40,6 +41,10 @@ public class ReviewTask {
 
     @Column(name = "pr_number", nullable = false)
     private Integer prNumber;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "pr_type", length = 30)
+    private PrType prType;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
@@ -115,6 +120,14 @@ public class ReviewTask {
 
     public void setPrNumber(Integer prNumber) {
         this.prNumber = prNumber;
+    }
+
+    public PrType getPrType() {
+        return prType;
+    }
+
+    public void setPrType(PrType prType) {
+        this.prType = prType;
     }
 
     public TaskStatus getStatus() {

@@ -7,11 +7,13 @@ import java.util.List;
 public record ReviewResultResponse(
         Long taskId,
         String status,
-        Integer riskCount,
+        String prType,
+        String resultViewType,
+        Integer findingCount,
         String errorMessage,
         PullRequestPayload pullRequest,
         ReviewReportPayload reviewResult,
-        List<RiskItemPayload> riskItems,
+        List<FindingPayload> findings,
         LocalDateTime createdAt,
         LocalDateTime updatedAt
 ) {
@@ -44,15 +46,23 @@ public record ReviewResultResponse(
     ) {
     }
 
-    public record RiskItemPayload(
+    public record FindingPayload(
+            Long id,
             String filePath,
             Integer lineNumber,
             String codeSnippet,
-            String riskLevel,
-            String riskType,
+            String findingLevel,
+            String findingKind,
+            String findingCategory,
+            String title,
             String description,
             String suggestion,
-            BigDecimal confidence
+            String beforeExample,
+            String afterExample,
+            String suggestedPatch,
+            String diffUrl,
+            BigDecimal confidence,
+            String feedbackStatus
     ) {
     }
 }

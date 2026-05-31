@@ -1,0 +1,17 @@
+package com.example.prreview.enums;
+
+public enum FindingCategory {
+    DOCUMENTATION_FORMAT,
+    COMMAND_EXECUTABILITY,
+    PATH_COMPATIBILITY,
+    TEST_GAP,
+    CODE_LOGIC,
+    SECURITY,
+    EXCEPTION_HANDLING,
+    PERFORMANCE,
+    MAINTAINABILITY,
+    CONFIG_COMPATIBILITY,
+    DEPENDENCY_CHANGE,
+    CICD_CHANGE,
+    OTHER
+}
