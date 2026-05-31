@@ -1,4 +1,7 @@
-import { Button, Card, Form, Input, InputNumber, Space, Typography } from "antd";
+import { Alert, Button, Card, Form, Input, InputNumber, Space, Typography } from "antd";
+
+const githubRepoUrlPattern =
+  /^(https?:\/\/github\.com\/[^/\s]+\/[^/\s]+?(?:\.git)?\/?|git@github\.com:[^/\s]+\/[^/\s]+?(?:\.git)?)$/i;
 
 function PrInputForm({ loading, onSubmit }) {
   const [form] = Form.useForm();
@@ -11,9 +14,17 @@ function PrInputForm({ loading, onSubmit }) {
             提交 PR 分析信息
           </Typography.Title>
           <Typography.Paragraph className="form-description">
-            输入公开 GitHub 仓库地址和 PR 编号后，系统会调用后端接口生成完整的 AI Review 报告。
+            输入公开 GitHub 仓库地址和 PR 编号后，系统会自动识别 PR 类型、分析代码变更风险，
+            并生成结构化 Review 报告、测试建议和修复示例。
           </Typography.Paragraph>
         </div>
+
+        <Alert
+          type="info"
+          showIcon
+          message="当前仅支持公开 GitHub 仓库"
+          description="请使用有效的 GitHub 仓库地址，例如 https://github.com/owner/repository 或带 .git 的克隆地址。"
+        />
 
         <Form
           form={form}
@@ -30,7 +41,21 @@ function PrInputForm({ loading, onSubmit }) {
             name="repoUrl"
             rules={[
               { required: true, message: "请输入 GitHub 仓库地址" },
-              { type: "url", message: "请输入有效的 URL" }
+              {
+                validator: (_, value) => {
+                  if (!value) {
+                    return Promise.resolve();
+                  }
+
+                  if (!githubRepoUrlPattern.test(value.trim())) {
+                    return Promise.reject(
+                      new Error("仓库地址格式错误，请输入完整 GitHub URL")
+                    );
+                  }
+
+                  return Promise.resolve();
+                }
+              }
             ]}
           >
             <Input placeholder="https://github.com/owner/repository" />
@@ -70,6 +95,10 @@ function PrInputForm({ loading, onSubmit }) {
               开始分析
             </Button>
           </Form.Item>
+
+          <Typography.Paragraph className="form-helper-text">
+            预计需要 10-30 秒，分析完成后自动进入报告页。
+          </Typography.Paragraph>
         </Form>
       </Space>
     </Card>

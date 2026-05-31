@@ -44,6 +44,17 @@ const feedbackLabelMap = {
   FIXED: "已修复"
 };
 
+const prTypeLabelMap = {
+  CODE: "功能开发",
+  DOCUMENTATION: "文档修改",
+  CONFIG: "配置变更",
+  DEPENDENCY: "依赖调整",
+  CICD: "CI/CD 变更",
+  MIXED: "混合变更",
+  TEST: "测试补充",
+  UNKNOWN: "待识别"
+};
+
 export function getFindingLevelMeta(level) {
   if (!level) {
     return {
@@ -76,6 +87,14 @@ export function formatFeedbackStatus(status) {
   }
 
   return feedbackLabelMap[status] ?? status;
+}
+
+export function formatPrType(prType) {
+  if (!prType) {
+    return prTypeLabelMap.UNKNOWN;
+  }
+
+  return prTypeLabelMap[prType] ?? prType;
 }
 
 export function getResultSectionTitle(prType) {

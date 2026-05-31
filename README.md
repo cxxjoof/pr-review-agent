@@ -32,6 +32,7 @@ AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应�
 ## 功能特性
 
 - 支持提交公开 GitHub 仓库地址和 PR 编号，创建审查任务
+- 支持 GitHub 仓库地址格式校验，兼容标准 HTTPS 仓库地址、带 `.git` 的克隆地址和 GitHub SSH 地址
 - 支持从 GitHub REST API 获取 PR 标题、作者、分支、变更文件和 patch 内容
 - 支持将 diff 解析为结构化审查上下文，而不是把原始 patch 全量传给模型
 - 支持 PR 类型识别：`DOCUMENTATION`、`CODE`、`CONFIG`、`TEST`、`DEPENDENCY`、`CICD`、`MIXED`
@@ -40,7 +41,10 @@ AI PR Review 助手是一个面向 GitHub Pull Request 场景的全栈 Web 应�
 - 支持 `ADVISORY` 作为独立建议等级，降低文档类 PR 的误报和过度诊断
 - 支持 `beforeExample`、`afterExample`、`suggestedPatch`、`diffUrl`
 - 支持发现项反馈闭环：`USEFUL`、`FALSE_POSITIVE`、`IGNORED`、`FIXED`
+- 支持首页产品化交互：能力说明、示例报告预览、最近一次分析记录
+- 支持前端三阶段分析加载态：提交任务、获取 PR 信息并分析变更、生成并读取报告
 - 支持前端卡片式发现项展示，并支持展开详情、反馈操作和 GitHub diff 跳转
+- 支持展开详情时保持当前位置，避免页面自动滚动导致按钮偏移
 - 支持统一错误响应，对参数错误、上游调用失败、超时等场景给出清晰提示
 
 ## 技术栈
@@ -210,7 +214,14 @@ http://localhost:8080
 4. 输入公开 GitHub 仓库地址
 5. 输入 PR 编号
 6. 提交分析任务
-7. 查看生成的审查结果和错误提示
+7. 查看首页加载状态、最近一次分析记录和示例报告预览
+8. 查看生成的审查结果、发现项详情、修复示例和错误提示
+
+推荐测试的仓库地址格式示例：
+
+- `https://github.com/octocat/Hello-World`
+- `https://github.com/octocat/Hello-World.git`
+- `git@github.com:octocat/Hello-World.git`
 
 ## 配置说明
 
@@ -513,11 +524,14 @@ npm run build
 - 前端能够正常启动
 - `GET /api/health` 返回 `UP`
 - 非法 `repoUrl` 或 `prNumber` 能返回清晰错误信息
+- 合法的 GitHub HTTPS 地址、带 `.git` 的克隆地址可以通过前端校验
 - GitHub API 错误能以统一格式返回
-- 前端能够展示加载状态、Review 结果和后端错误提示
+- 前端能够展示加载状态、最近一次分析记录、Review 结果和后端错误提示
 - 文档类 PR 能返回 `prType=DOCUMENTATION`
 - 文档类发现项默认不再使用过高等级
 - 发现项可以提交反馈并在详情中回显 `feedbackStatus`
+- 返回首页后再次点击“查看报告”时，反馈状态不会丢失
+- 点击“展开详情”时页面不会自动向上跳动，按钮位置保持稳定
 
 ## 常见问题
 
@@ -580,6 +594,17 @@ npm run build
 - 支持 `beforeExample`、`afterExample`、`suggestedPatch`、`diffUrl`
 - 支持发现项反馈闭环接口：`POST /api/reviews/{taskId}/findings/{findingId}/feedback`
 - 前端结果页改为卡片式发现项展示，并支持展开详情与反馈操作
+
+### 2026-05 前端产品化体验更新
+
+本轮前端围绕首页和结果页做了产品化增强：
+
+- 首页新增能力说明、示例 Review 报告预览和最近一次分析记录
+- 表单补充 GitHub 仓库地址格式校验和分析耗时提示
+- 分析过程改为三阶段加载态，减少“提交后无反馈”的感受
+- 结果页强化 PR 类型、风险等级、发现项数量和总体结论展示
+- 发现项展开详情时保持当前位置，避免页面自动滚动带来的视觉跳动
+- 反馈提交后会同步更新首页重新打开的报告视图，避免状态回退
 
 如果你是从旧版本升级而来，需要注意：
 

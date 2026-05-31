@@ -7,8 +7,15 @@ coverage/
 frontend/coverage/
 .vite/
 frontend/.vite/
+.vite-inspect/
+frontend/.vite-inspect/
 .parcel-cache/
 frontend/.parcel-cache/
+storybook-static/
+frontend/storybook-static/
+*.tsbuildinfo
+.eslintcache
+.stylelintcache
 
 # Backend build output
 target/
@@ -85,6 +92,7 @@ Thumbs.db
 *.tmp
 *.temp
 *.bak
+*.cache
 *.orig
 *.rej
 *.swp
