@@ -2,16 +2,16 @@ import { Card, Progress, Space, Spin, Steps, Typography } from "antd";
 
 const loadingStepItems = [
   {
-    title: "提交分析任务",
+    title: "正在提交分析任务...",
     description: "向后端发送仓库地址和 PR 编号。"
   },
   {
-    title: "等待 AI Review",
-    description: "后端正在抓取 PR、解析 diff 并调用模型。"
+    title: "正在获取 PR 信息并分析代码变更...",
+    description: "当前为前端分阶段展示，实际耗时会随 PR 规模变化。"
   },
   {
-    title: "读取结果报告",
-    description: "整理完整的 PR 审查结果用于展示。"
+    title: "正在生成 Review 报告并读取结果...",
+    description: "系统会在报告准备完成后自动切换到结果页。"
   }
 ];
 
@@ -28,7 +28,7 @@ function LoadingStatus({ currentStep = 1, repoUrl, prNumber }) {
               正在生成 AI Review 报告
             </Typography.Title>
             <Typography.Paragraph className="form-description">
-              当前正在分析 `{repoUrl}` 的 PR #{prNumber}。根据变更规模不同，这一步可能持续几十秒。
+              当前正在分析 {repoUrl} 的 PR #{prNumber}。根据变更规模不同，这一步可能持续几十秒。
             </Typography.Paragraph>
           </div>
         </div>

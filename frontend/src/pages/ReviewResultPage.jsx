@@ -15,6 +15,7 @@ import FindingList from "../components/FindingList.jsx";
 import ReviewSummaryCard from "../components/ReviewSummaryCard.jsx";
 import SuggestionList from "../components/SuggestionList.jsx";
 import {
+  formatPrType,
   getFindingLevelMeta,
   getResultSectionTitle
 } from "../utils/riskLevel.js";
@@ -68,6 +69,7 @@ function ReviewResultPage({
   const reviewResult = reviewDetail?.reviewResult ?? {};
   const findings = reviewDetail?.findings ?? [];
   const prType = reviewDetail?.prType;
+  const findingCount = reviewDetail?.findingCount ?? findings.length;
   const highestFindingLevel = getHighestFindingLevel(findings);
   const highestFindingMeta = highestFindingLevel
     ? getFindingLevelMeta(highestFindingLevel)
@@ -93,7 +95,7 @@ function ReviewResultPage({
               <Col xs={24} lg={15}>
                 <Space direction="vertical" size={14}>
                   <Tag className="hero-tag" bordered={false}>
-                    {prType || "REVIEW"}
+                    {formatPrType(prType)}
                   </Tag>
                   <Typography.Title level={1} className="result-title">
                     {pullRequest.title || `${pullRequest.repoOwner}/${pullRequest.repoName} PR #${pullRequest.prNumber}`}
@@ -104,7 +106,9 @@ function ReviewResultPage({
                   <Space wrap>
                     <Tag className="feature-tag">{pullRequest.repoOwner}/{pullRequest.repoName}</Tag>
                     <Tag className="feature-tag">PR #{pullRequest.prNumber}</Tag>
+                    <Tag className="feature-tag">PR 类型：{formatPrType(prType)}</Tag>
                     <Tag className="feature-tag">状态：{reviewDetail?.status}</Tag>
+                    <Tag className="feature-tag">发现项：{findingCount}</Tag>
                     <Tag color={highestFindingMeta.color}>{highestFindingMeta.label}</Tag>
                   </Space>
                 </Space>
@@ -199,7 +203,7 @@ function ReviewResultPage({
             <Col xs={24} xl={12}>
               <SuggestionList
                 title="Review 建议"
-                description="这些建议更偏向实现质量、鲁棒性和可维护性。"
+                description="这些建议更偏向实现质量、可用性和可维护性。"
                 items={reviewResult.reviewSuggestions}
                 variant="review"
               />
